@@ -2,12 +2,15 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 uint32_t p = 1 / 4;
 
-static uint32_t random_level() {
+//FIXME this should be static and removed from the test file
+uint32_t random_level() {
   uint32_t i;
-  for (i = 0; i < MAX_LEVELS && rand() % 2 == 0; i++)
+  //MAX_LEVELS - 1 cause we want a number from range [0,MAX_LEVELS-1]
+  for (i = 0; i < MAX_LEVELS - 1 && rand() % 2 == 0; i++)
     ;
 
   return i;
@@ -107,12 +110,12 @@ void insert_skiplist(struct skiplist *skplist, char *key, char *value) {
     curr->value = strdup(value);
     return;
   } else {
-    lvl = 0;//random_level();
+    lvl = random_level();
+    //printf("inserting key%s at level %d, skplist level is%d\n", key, lvl, skplist->level);
     if (lvl > skplist->level) {
-      for (i = skplist->level + 1; i < lvl; i++)
+      for (i = skplist->level + 1; i <= lvl; i++)
         update_vector[i] =
-            skplist->header
-                ->forward_pointer[i]; // header should point to sentinel?
+            skplist->header; // header should point to sentinel?
       skplist->level = lvl;
     }
 
