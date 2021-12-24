@@ -17,10 +17,16 @@ uint32_t random_level() {
 }
 
 static struct skiplist_node *make_node(char *key, char *value) {
+  uint32_t key_size = strlen(key) + 1;
+  uint32_t value_size = strlen(value) + 1;
   struct skiplist_node *new_node =
-      (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
-  new_node->key = strdup(key);
-  new_node->value = strdup(value);
+    (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
+
+  new_node->key = malloc(key_size);
+  new_node->value = malloc(value_size);
+
+  memcpy(new_node->key, key, key_size);
+  memcpy(new_node->value,value, value_size);
   new_node->is_NIL = 0;
 
   return new_node;
@@ -31,7 +37,7 @@ void init_skiplist(struct skiplist *skplist) {
   int i;
   // allocate NIL (sentinel)
   skplist->NIL_element =
-      (struct skiplist_node *)calloc(1, sizeof(struct skiplist_node));
+      (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
   skplist->NIL_element->is_NIL = 1;
 
   // level is 0
@@ -44,20 +50,20 @@ void init_skiplist(struct skiplist *skplist) {
   for (i = 0; i < MAX_LEVELS; i++)
     skplist->header->forward_pointer[i] = skplist->NIL_element;
 
-  // srand(time(NULL));
 }
 
 char *search_skiplist(struct skiplist *skplist, char *search_key) {
   int i, ret;
+  uint32_t key_size = strlen(search_key);
   struct skiplist_node *curr = skplist->header;
 
   for (i = skplist->level; i >= 0; i--) {
     while (!curr->forward_pointer[i]->is_NIL &&
-           memcmp(curr->forward_pointer[i]->key, search_key,
-                  strlen(search_key)) < 0)
+           memcmp(curr->forward_pointer[i]->key, search_key, key_size) < 0)
       curr = curr->forward_pointer[i];
   }
 
+  //corner case
   if (curr->forward_pointer[0]
           ->is_NIL) // next element for level 0 is sentinel, key not found
     return NULL;
@@ -65,7 +71,7 @@ char *search_skiplist(struct skiplist *skplist, char *search_key) {
   // we are infront of the key if exists
   // get next node and check for existence
   curr = curr->forward_pointer[0];
-  ret = memcmp(curr->key, search_key, strlen(search_key));
+  ret = memcmp(curr->key, search_key, key_size);
   if (ret == 0)
     return curr->value;
   else
@@ -74,14 +80,9 @@ char *search_skiplist(struct skiplist *skplist, char *search_key) {
 
 void insert_skiplist(struct skiplist *skplist, char *key, char *value) {
   int i, ret, lvl;
+  uint32_t key_size = strlen(key);
   struct skiplist_node *update_vector[MAX_LEVELS];
   struct skiplist_node *curr = skplist->header;
-
-  // init update_vector
-  // keeps the leftmost node of each level that has to be modified after the
-  // insertion
-  for (i = 0; i < MAX_LEVELS; i++)
-    update_vector[i] = skplist->header;
 
   for (i = skplist->level; i >= 0; i--) {
     while (1) {
@@ -89,7 +90,7 @@ void insert_skiplist(struct skiplist *skplist, char *key, char *value) {
       if (curr->forward_pointer[i]->is_NIL)
         break;
 
-      ret = memcmp(curr->forward_pointer[i]->key, key, strlen(key));
+      ret = memcmp(curr->forward_pointer[i]->key, key, key_size);
       if (ret < 0)
           curr = curr->forward_pointer[i];
       else
@@ -99,15 +100,15 @@ void insert_skiplist(struct skiplist *skplist, char *key, char *value) {
   }
 
   // we are infront of the wanted key if exist
-  // retrieve if and check for existence
+  // retrieve it and check for existence
   curr = curr->forward_pointer[0];
   if (!curr->is_NIL)
-    ret = memcmp(curr->key, key, strlen(key));
+    ret = memcmp(curr->key, key, key_size);
   else
     ret = 1; // curr node is the sentinel node, key always wins
 
   if (ret == 0) {
-    curr->value = strdup(value);
+    curr->value = strdup(value); //FIXME replace strdup?
     return;
   } else {
     lvl = random_level();

@@ -5,7 +5,7 @@
 #include <time.h>
 #include <string.h>
 
-#define KVS_NUM 1000000
+#define KVS_NUM 100000
 #define KV_PREFIX "ts"
 
 
@@ -81,6 +81,6 @@ int main(){
     populate_the_skiplist(&my_skiplist);
     printf("Inserts test passeed\n");
 
-    //print_skplist(&my_skiplist);
+    print_skplist(&my_skiplist);
     print_each_level_size(my_skiplist);
 }

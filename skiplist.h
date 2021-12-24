@@ -9,7 +9,6 @@ struct skiplist_node{
     char* key;
     char* value;
     uint8_t is_NIL; //(1) can we determine the maximum key?? if not we use this variable
-
 };
 
 struct skiplist{
