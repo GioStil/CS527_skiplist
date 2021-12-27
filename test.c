@@ -5,7 +5,7 @@
 #include <time.h>
 #include <string.h>
 
-#define KVS_NUM 100000
+#define KVS_NUM 100
 #define KV_PREFIX "ts"
 
 
@@ -26,7 +26,7 @@ static void print_skplist(struct skiplist* skplist)
 static void populate_the_skiplist(struct skiplist* skplist)
 {
     int i;
-    char* key = malloc(3 + sizeof(long long unsigned));
+    char* key = malloc(strlen(KV_PREFIX) + sizeof(long long unsigned));
 
     for(i = 0; i < KVS_NUM; i++){
         memcpy(key, KV_PREFIX, strlen(KV_PREFIX));
@@ -61,6 +61,20 @@ static void print_each_level_size(struct skiplist skplist)
     }
 }
 
+static void delete_half_keys(struct skiplist* skplist)
+{
+    int i;
+    char* key = malloc(strlen(KV_PREFIX) + sizeof(long long unsigned));
+
+    for(i = 0; i < KVS_NUM / 2; i++){
+        memcpy(key, KV_PREFIX, strlen(KV_PREFIX));
+        sprintf(key + strlen(KV_PREFIX), "%llu" , (unsigned long long)i);
+        printf("Deleting key%s\n", key);
+        delete_skiplist(skplist, key);
+        print_skplist(skplist);
+    }
+}
+
 int main(){
     srand(time(0));
     int i;
@@ -83,4 +97,10 @@ int main(){
 
     print_skplist(&my_skiplist);
     print_each_level_size(my_skiplist);
+
+    printf("Testing deletes\n");
+    delete_half_keys(&my_skiplist);
+    printf("Testing deletes finished\n");
+    print_skplist(&my_skiplist);
+    printf("level is%d\n",my_skiplist.level);
 }

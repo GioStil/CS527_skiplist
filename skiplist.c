@@ -128,3 +128,57 @@ void insert_skiplist(struct skiplist *skplist, char *key, char *value) {
     }
   }
 }
+
+//update_vector is an array of size MAX_LEVELS
+static void delete_key(struct skiplist* skplist, struct skiplist_node** update_vector, struct skiplist_node* curr)
+{
+  int i;
+  for(i = 0; i <= skplist->level; i++){
+    if(update_vector[i]->forward_pointer[i] != curr)
+      break; //modifications for upper levels don't apply (passed the level of the curr node)
+
+    update_vector[i]->forward_pointer[i] = curr->forward_pointer[i];
+  }
+  free(curr); //FIXME we will use tombstones?
+
+  //previous skplist->level dont have nodes anymore. header points to NIL, so reduce the level of the list
+  while(skplist->level > 0 && skplist->header->forward_pointer[skplist->level]->is_NIL)
+    --skplist->level;
+}
+
+void delete_skiplist(struct skiplist* skplist, char* key)
+{
+  int32_t i, key_size;
+  int ret;
+  struct skiplist_node* update_vector[MAX_LEVELS];
+  struct skiplist_node* curr = skplist->header;
+
+  key_size = strlen(key);
+
+  for(i = skplist->level; i >= 0; i--){
+    while(1){
+
+      if(curr->forward_pointer[i]->is_NIL == 1)
+        break; //reached sentinel
+
+      ret = memcmp(curr->forward_pointer[i]->key, key, key_size);
+      if(ret < 0 )
+        curr = curr->forward_pointer[i];
+      else
+        break;
+    }
+
+    update_vector[i] = curr;
+  }
+  //retrieve it and check for existence
+  curr = curr->forward_pointer[0];
+  if(!curr->is_NIL)
+    ret = memcmp(curr->key, key, key_size);
+  else
+    return; //Did not found the key to delete (reached sentinel)
+
+  if(ret == 0) //found the key
+    delete_key(skplist, update_vector, curr);
+
+  /*FIXME else key doesn't exist in list so terminate. (should we warn the user?)*/
+}
