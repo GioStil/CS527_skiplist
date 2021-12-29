@@ -5,7 +5,7 @@
 #include <time.h>
 #include <string.h>
 
-#define KVS_NUM 100
+#define KVS_NUM 1000000
 #define KV_PREFIX "ts"
 #define NUM_OF_THREADS 8
 
@@ -86,18 +86,22 @@ static void delete_half_keys(struct skiplist* skplist)
     }
 }
 
+//this function also validates the return results
 static void* search_the_skiplist(void* args){
     int i, from, to;
     char* key = malloc(strlen(KV_PREFIX) + sizeof(long long unsigned));
     int* tid = (int*) args;
-    printf("Hello from tid%d\n", *tid);
+    char* ret_val;
+
     from = (int) ( ( (*tid) / (double) NUM_OF_THREADS ) * KVS_NUM );
     to = (int) ( ( (*tid + 1) / (double) NUM_OF_THREADS) * KVS_NUM );
-    printf("from is %d to %d\n", from, to);
+    printf("Searching from %d to %d\n", from, to);
     for(i = from; i < to; i++){
        memcpy(key, KV_PREFIX, strlen(KV_PREFIX));
        sprintf(key + strlen(KV_PREFIX), "%llu" , (unsigned long long)i);
-       //printf("Found key%s\n", search_skiplist(&my_skiplist, key));
+       ret_val = search_skiplist(&my_skiplist, key);
+       assert(ret_val != NULL);
+       assert(memcmp(ret_val, key, strlen(key)) == 0); //keys and value are same in this test
     }
 }
 
@@ -118,18 +122,13 @@ int main(){
     int i;
     struct thread_info thread_buf[NUM_OF_THREADS];
 
-    //printf("Testing initialization\n");
     init_skiplist(&my_skiplist);
-    //assert(my_skiplist.level == 0);
-    //for(i = 0; i < MAX_LEVELS; i++)
-    //    assert(my_skiplist.header->forward_pointer[i] == my_skiplist.NIL_element);
-    //printf("Initialization passed\n");
+    assert(my_skiplist.level == 0);
+    for(i = 0; i < MAX_LEVELS; i++)
+        assert(my_skiplist.header->forward_pointer[i] == my_skiplist.NIL_element);
 
-    //printf("Testing random_level generator\n");
-    //test_random_level_generator();
-    //printf("Random level generator passed\n");
+    test_random_level_generator();
 
-    //printf("Testing concurrent inserts\n");
     for(i = 0; i < NUM_OF_THREADS; i++){
         thread_buf[i].tid = (uint32_t*) malloc(sizeof(int));
         *thread_buf[i].tid = i;
@@ -139,13 +138,15 @@ int main(){
     for(i = 0; i < NUM_OF_THREADS; i++)
         pthread_join(thread_buf[i].th, NULL);
 
-    //printf("Concurrent Inserts test passeed\n");
+    validate_number_of_kvs();
+    printf("Validation of number of KVs passed\n");
 
-    //validate_number_of_kvs();
-    //printf("Validation of number of KVs passed\n");
-    //delete_half_keys(&my_skiplist);
-    //printf("Testing deletes finished\n");
-    print_skplist(&my_skiplist);
-    //printf("level is%d\n",my_skiplist.level);
-    
+    for(i = 0; i < NUM_OF_THREADS; i++){
+        thread_buf[i].tid = (uint32_t*) malloc(sizeof(int));
+        *thread_buf[i].tid = i;
+        pthread_create(&thread_buf[i].th, NULL, search_the_skiplist, thread_buf[i].tid);
+    }
+
+    for(i = 0; i < NUM_OF_THREADS; i++)
+        pthread_join(thread_buf[i].th, NULL);
 }

@@ -7,7 +7,7 @@
 
 #define KVS_NUM 1000000
 #define KV_PREFIX "ts"
-#define NUM_OF_THREADS 6
+#define NUM_OF_THREADS 8
 
 struct thread_info{
     pthread_t th;

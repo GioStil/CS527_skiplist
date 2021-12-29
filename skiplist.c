@@ -49,6 +49,19 @@ static struct skiplist_node *make_node(char *key, char *value, uint32_t level) {
   return new_node;
 }
 
+static uint32_t calculate_level(struct skiplist* skplist)
+{
+  uint32_t i,lvl = 0;
+  for(i = 0; i < MAX_LEVELS; i++){
+    if(skplist->header->forward_pointer[i] != skplist->NIL_element)
+      lvl = i;
+    else
+      break;
+  }
+
+  return lvl;
+}
+
 // skplist is an object called by reference
 void init_skiplist(struct skiplist *skplist) {
   int i;
@@ -80,55 +93,53 @@ void init_skiplist(struct skiplist *skplist) {
 
 char *search_skiplist(struct skiplist *skplist, char *search_key) {
   int i, ret;
-  uint32_t key_size, node_size;
+  uint32_t key_size, node_key_size, lvl;
   char* ret_val;
   struct skiplist_node* next_curr;
+  key_size = strlen(search_key);
 
   RWLOCK_RDLOCK(&skplist->header->rw_nodelock);
   struct skiplist_node* curr = skplist->header;
+  //replace this with the hint level
+  lvl = calculate_level(skplist);
 
-  for (i = skplist->header->level; i >= 0; i--) {
-
+  for (i = lvl; i >= 0; i--) {
     next_curr = curr->forward_pointer[i];
-
     while (1){
-
       if(curr->forward_pointer[i]->is_NIL){
         break;
       }
 
-
-      ret = memcmp(curr->forward_pointer[i]->key, search_key, key_size);
+      node_key_size = strlen(curr->forward_pointer[i]->key);
+      if(node_key_size > key_size)
+        ret = memcmp(curr->forward_pointer[i]->key, search_key, node_key_size);
+      else
+        ret = memcmp(curr->forward_pointer[i]->key, search_key, key_size);
 
       if(ret < 0){
         RWLOCK_UNLOCK(&curr->rw_nodelock);
         curr = next_curr;
-        RWLOCK_RDLOCK(&curr->forward_pointer[i]->rw_nodelock);
+        RWLOCK_RDLOCK(&curr->rw_nodelock);
         next_curr = curr->forward_pointer[i];
       } else{
-        RWLOCK_UNLOCK(&curr->forward_pointer[i]->rw_nodelock);
         break;
       }
     }
   }
 
-  //we are infront of the node at level 0, node is locked, next node is not locked!
-  //lock the next node, no data race for inserts here cause the forward ptr is locked
-  RWLOCK_RDLOCK(&curr->forward_pointer[0]->rw_nodelock);
-  next_curr = curr->forward_pointer[0]; //FIXME reduntant?
-  RWLOCK_UNLOCK(&curr->rw_nodelock);
-  curr = next_curr;
-
+  //we are infront of the node at level 0, node is locked
   //corner case
   //next element for level 0 is sentinel, key not found
-  if (curr->is_NIL){
-    RWLOCK_UNLOCK(&curr->rw_nodelock);
-    return NULL;
+  if (!curr->forward_pointer[0]->is_NIL){
+    node_key_size = strlen(curr->forward_pointer[0]->key);
+    key_size = key_size > node_key_size ? key_size : node_key_size;
+    ret = memcmp(curr->forward_pointer[0]->key, search_key, key_size);
+  } else{
+    ret = 1;
   }
 
-  ret = memcmp(curr->key, search_key, key_size);
   if (ret == 0){
-    ret_val = curr->value;
+    ret_val = curr->forward_pointer[0]->value;
     RWLOCK_UNLOCK(&curr->rw_nodelock);
     return ret_val;
   } else {
@@ -178,19 +189,6 @@ static struct skiplist_node* getLock(struct skiplist_node* curr, char* key, int 
     }
   }
   return curr;
-}
-
-static uint32_t calculate_level(struct skiplist* skplist)
-{
-  uint32_t i,lvl = 0;
-  for(i = 0; i < MAX_LEVELS; i++){
-    if(skplist->header->forward_pointer[i] != skplist->NIL_element)
-      lvl = i;
-    else
-      break;
-  }
-
-  return lvl;
 }
 
 void insert_skiplist(struct skiplist* skplist, char* key, char* value)
