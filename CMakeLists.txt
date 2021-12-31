@@ -30,8 +30,23 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
                                                "MinSizeRel" "RelWithDebInfo")
 endif()
 
+include(FetchContent)
 include(GNUInstallDirs)
 set(SOURCE_FILES src/skiplist.c)
+
+FetchContent_Declare(
+  cmake-scripts
+  GIT_REPOSITORY https://github.com/StableCoder/cmake-scripts.git
+  GIT_TAG main
+  GIT_PROGRESS TRUE)
+
+FetchContent_GetProperties(cmake-scripts)
+
+if(NOT cmake-scripts_POPULATED)
+  FetchContent_Populate(cmake-scripts)
+  FetchContent_MakeAvailable(cmake-scripts)
+  include(${cmake-scripts_SOURCE_DIR}/sanitizers.cmake)
+endif()
 
 add_library(${PROJECT_NAME} ${SOURCE_FILES})
 target_include_directories(
