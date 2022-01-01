@@ -35,5 +35,6 @@ void free_skiplist(struct skiplist *skplist);
 /*iterators staff*/
 void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, char *search_key);
 void get_next(struct skiplist_iterator *iter);
+uint32_t random_level(); // Required from simple_test.c
 
 #endif // SKIPLIST_H_

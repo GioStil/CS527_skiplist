@@ -11,6 +11,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_C_CLANG_TIDY "")
 option(BUILD_SHARED_LIBS
        "Build shared libraries (.dll/.so) instead of static ones (.lib/.a)" OFF)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 # Set a default build type if none was specified
 set(default_build_type "Release")
@@ -31,8 +32,10 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 include(FetchContent)
+include(CTest)
 include(GNUInstallDirs)
 set(SOURCE_FILES src/skiplist.c)
+find_package(Threads REQUIRED)
 
 FetchContent_Declare(
   cmake-scripts
@@ -48,6 +51,8 @@ if(NOT cmake-scripts_POPULATED)
   include(${cmake-scripts_SOURCE_DIR}/sanitizers.cmake)
 endif()
 
+add_subdirectory(tests)
+
 add_library(${PROJECT_NAME} ${SOURCE_FILES})
 target_include_directories(
   ${PROJECT_NAME}
@@ -57,6 +62,7 @@ target_include_directories(
 
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME skiplist
                                                  CLEAN_DIRECT_OUTPUT 1)
+target_link_libraries(${PROJECT_NAME} PRIVATE Threads::Threads)
 
 find_program(iwyu_path NAMES include-what-you-use iwyu iwyu-tool)
 if(iwyu_path)
