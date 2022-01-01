@@ -1,2 +1,4 @@
 build/
 a.out
+CMakeCache.txt
+CMakeFiles
