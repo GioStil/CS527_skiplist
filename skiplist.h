@@ -11,7 +11,7 @@ struct skiplist_node{
     uint32_t level;
     char* key;
     char* value;
-    uint8_t is_NIL; //(1) can we determine the maximum key?? if not we use this variable
+    uint8_t is_NIL;
 };
 
 struct skiplist_iterator{
@@ -21,7 +21,7 @@ struct skiplist_iterator{
 };
 
 struct skiplist{
-    uint32_t level; //currently the highest level of the list
+    uint32_t level; //this variable will be used as the level hint
     struct skiplist_node* header;
     struct skiplist_node* NIL_element; //last element of the skip list
 };

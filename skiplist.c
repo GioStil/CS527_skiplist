@@ -14,12 +14,7 @@
 #define MUTEX_LOCK(L) pthread_mutex_lock(L)
 #define MUTEX_UNLOCK(L) pthread_mutex_unlock(L)
 
-
-uint32_t p = 1 / 4;
-uint8_t is_list_level_lock_locked = 0;
 pthread_mutex_t levels_lock_buf[MAX_LEVELS];
-pthread_mutex_t skplist_level_hint_lock;
-
 
 //FIXME this should be static and removed from the test file
 uint32_t random_level() {
@@ -37,6 +32,11 @@ static struct skiplist_node *make_node(char *key, char *value, uint32_t level) {
   struct skiplist_node *new_node =
     (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
 
+  if(new_node == NULL){
+    printf("Malloc failed to allocate a node\n");
+    assert(0);
+    exit(EXIT_FAILURE);
+  }
   new_node->level = level;
   new_node->key = malloc(key_size);
   new_node->value = malloc(value_size);
@@ -49,6 +49,7 @@ static struct skiplist_node *make_node(char *key, char *value, uint32_t level) {
   return new_node;
 }
 
+/*returns the biggest non-null level*/
 static uint32_t calculate_level(struct skiplist* skplist)
 {
   uint32_t i,lvl = 0;
@@ -67,17 +68,27 @@ void init_skiplist(struct skiplist *skplist) {
   int i;
   // allocate NIL (sentinel)
   skplist->NIL_element =
-      (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
+    (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
+  if(skplist->NIL_element == NULL){
+    printf("Malloced failed\n");
+    assert(0);
+    exit(EXIT_FAILURE);
+  }
   skplist->NIL_element->is_NIL = 1;
   skplist->NIL_element->level = 0;
   if(RWLOCK_INIT(&skplist->NIL_element->rw_nodelock, NULL) != 0) {
     exit(EXIT_FAILURE);
   }
   // level is 0
-  skplist->level = 0; //FIXME reduntant in concurrent scheme
+  skplist->level = 0; //FIXME this will be the level hint
 
   skplist->header =
-      (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
+    (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
+  if(skplist->header == NULL){
+    printf("Malloced failed\n");
+    assert(0);
+    exit(EXIT_FAILURE);
+  }
   skplist->header->is_NIL = 0;
   skplist->header->level = 0;
   if(RWLOCK_INIT(&skplist->header->rw_nodelock, NULL) != 0){
@@ -87,28 +98,25 @@ void init_skiplist(struct skiplist *skplist) {
   // all forward pointers of header point to NIL
   for (i = 0; i < MAX_LEVELS; i++)
     skplist->header->forward_pointer[i] = skplist->NIL_element;
-
-  MUTEX_INIT(&skplist_level_hint_lock, NULL);
 }
 
 char *search_skiplist(struct skiplist *skplist, char *search_key) {
   int i, ret;
-  uint32_t key_size, node_key_size, lvl;
+  uint32_t key_size, node_key_size, value_size, lvl;
   char* ret_val;
-  struct skiplist_node* next_curr;
+  struct skiplist_node* curr, *next_curr;
   key_size = strlen(search_key);
 
   RWLOCK_RDLOCK(&skplist->header->rw_nodelock);
-  struct skiplist_node* curr = skplist->header;
+  curr = skplist->header;
   //replace this with the hint level
   lvl = calculate_level(skplist);
 
   for (i = lvl; i >= 0; i--) {
     next_curr = curr->forward_pointer[i];
     while (1){
-      if(curr->forward_pointer[i]->is_NIL){
+      if(curr->forward_pointer[i]->is_NIL)
         break;
-      }
 
       node_key_size = strlen(curr->forward_pointer[i]->key);
       if(node_key_size > key_size)
@@ -121,9 +129,8 @@ char *search_skiplist(struct skiplist *skplist, char *search_key) {
         curr = next_curr;
         RWLOCK_RDLOCK(&curr->rw_nodelock);
         next_curr = curr->forward_pointer[i];
-      } else{
+      } else
         break;
-      }
     }
   }
 
@@ -139,7 +146,9 @@ char *search_skiplist(struct skiplist *skplist, char *search_key) {
   }
 
   if (ret == 0){
-    ret_val = curr->forward_pointer[0]->value;
+    value_size = strlen(curr->forward_pointer[0]->value) + 1;
+    ret_val = malloc(value_size);
+    memcpy(ret_val, curr->forward_pointer[0]->value, value_size);
     RWLOCK_UNLOCK(&curr->rw_nodelock);
     return ret_val;
   } else {
@@ -169,9 +178,8 @@ static struct skiplist_node* getLock(struct skiplist_node* curr, char* key, int 
   next_curr = curr->forward_pointer[lvl];
 
   while(1){
-    if(curr->forward_pointer[lvl]->is_NIL){
+    if(curr->forward_pointer[lvl]->is_NIL)
       break;
-    }
 
     node_key_size = strlen(curr->forward_pointer[lvl]->key);
     if(node_key_size > key_size)
@@ -184,23 +192,21 @@ static struct skiplist_node* getLock(struct skiplist_node* curr, char* key, int 
       curr = next_curr;
       RWLOCK_WRLOCK(&curr->rw_nodelock);
       next_curr = curr->forward_pointer[lvl];
-    }else{
+    }else
       break;
-    }
   }
   return curr;
 }
 
 void insert_skiplist(struct skiplist* skplist, char* key, char* value)
 {
-  int i, ret, lvl, header_rdlock_flag;
-  uint32_t key_size, node_key_size;
+  int i, ret;
+  uint32_t key_size, node_key_size, lvl;
   struct skiplist_node* update_vector[MAX_LEVELS];
-  struct skiplist_node* next_curr;
-  header_rdlock_flag = 0;
+  struct skiplist_node* curr, *next_curr;
   key_size = strlen(key);
   RWLOCK_RDLOCK(&skplist->header->rw_nodelock);
-  struct skiplist_node* curr = skplist->header;
+  curr = skplist->header;
   //we have the lock of the header, determine the lvl of the list
   lvl = calculate_level(skplist);
   /*traverse the levels till 0 */
@@ -230,7 +236,7 @@ void insert_skiplist(struct skiplist* skplist, char* key, char* value)
                              //think that the concurrent inserts can update the list in the meanwhile
   }
 
-  curr = getLock(curr, key, 0); //header rd lock flag is 0 here always
+  curr = getLock(curr, key, 0);
   //compare forward's key with the key
   //take as key_size the bigger key else we could have conflicts with e.g. 5 and 50 key
   if(!curr->forward_pointer[0]->is_NIL){
@@ -241,7 +247,7 @@ void insert_skiplist(struct skiplist* skplist, char* key, char* value)
     ret = 1;
 
   //updates are done only with the curr node write locked, so we dont have race using the
-  //forward pointer?
+  //forward pointer
   if(ret == 0 ){ //update logic
     curr->forward_pointer[0]->value = strdup(value); //FIXME change strdup
     RWLOCK_UNLOCK(&curr->rw_nodelock);
