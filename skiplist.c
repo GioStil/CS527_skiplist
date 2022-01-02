@@ -20,7 +20,7 @@ pthread_mutex_t levels_lock_buf[MAX_LEVELS];
 uint32_t random_level() {
   uint32_t i;
   //MAX_LEVELS - 1 cause we want a number from range [0,MAX_LEVELS-1]
-  for (i = 0; i < MAX_LEVELS - 1 && rand() % 2 == 0; i++)
+  for (i = 0; i < MAX_LEVELS - 1 && rand() % 4 == 0; i++)
     ;
 
   return i;
