@@ -133,5 +133,6 @@ int main(){
     compare_the_lists(concurrent_skiplist,skiplist_single_writer);
     validate_number_of_KVS(concurrent_skiplist);
 
-//    print_skplist(&concurrent_skiplist);
+    free_skiplist(&concurrent_skiplist);
+    free_skiplist(&skiplist_single_writer);
 }

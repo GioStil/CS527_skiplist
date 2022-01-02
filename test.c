@@ -5,7 +5,7 @@
 #include <time.h>
 #include <string.h>
 
-#define KVS_NUM 1000000
+#define KVS_NUM 10000
 #define KV_PREFIX "ts"
 #define NUM_OF_THREADS 8
 
@@ -163,4 +163,6 @@ int main(){
         pthread_join(thread_buf[i].th, NULL);
 
     validate_number_of_kvs_with_iterators();
+
+    free_skiplist(&my_skiplist);
 }

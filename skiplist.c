@@ -407,3 +407,17 @@ void get_next(struct skiplist_iterator* iter)
     assert(0);
   }
 }
+
+void free_skiplist(struct skiplist* skplist)
+{
+  struct skiplist_node* curr, *next_curr;
+  curr = skplist->header;
+
+  while(!curr->is_NIL){
+    next_curr = curr->forward_pointer[0];
+    free(curr);
+    curr = next_curr;
+  }
+  //free sentinel
+  free(curr);
+}
