@@ -323,3 +323,87 @@ void delete_skiplist(struct skiplist* skplist, char* key)
 
   /*FIXME else key doesn't exist in list so terminate. (should we warn the user?)*/
 }
+
+/*iterators staff*/
+/*iterator is called by reference*/
+/*iterator will hold the readlock of the corresponding search_key's node.
+ ! all the inserts/update operations are valid except the ones containing that node(because for such modifications
+ the write lock is needed)*/
+void init_iterator(struct skiplist_iterator* iter, struct skiplist* skplist, char* search_key)
+{
+  int i, lvl;
+  struct skiplist_node* curr, *next_curr;
+  int node_key_size, key_size, ret;
+  key_size = strlen(search_key);
+  RWLOCK_RDLOCK(&skplist->header->rw_nodelock);
+  curr = skplist->header;
+  //replace this with the hint level
+  lvl = calculate_level(skplist);
+
+  for(i = lvl; i >= 0; i--){
+    next_curr = curr->forward_pointer[i];
+    while(1){
+      if(curr->forward_pointer[i]->is_NIL) //reached sentinel for that level
+        break;
+
+      node_key_size = strlen(curr->forward_pointer[i]->key);
+      if(node_key_size > key_size)
+        ret = memcmp(curr->forward_pointer[i]->key, search_key, node_key_size);
+      else
+        ret = memcmp(curr->forward_pointer[i]->key, search_key, key_size);
+
+      if(ret < 0){
+        RWLOCK_UNLOCK(&curr->rw_nodelock);
+        curr = next_curr;
+        RWLOCK_RDLOCK(&curr->rw_nodelock);
+        next_curr = curr->forward_pointer[i];
+      } else
+        break;
+    }
+  }
+  //we are infront of the node at level 0, node is locked
+  //corner case
+  //next element for level 0 is sentinel, key not found
+  if (!curr->forward_pointer[0]->is_NIL){
+    node_key_size = strlen(curr->forward_pointer[0]->key);
+    key_size = key_size > node_key_size ? key_size : node_key_size;
+    ret = memcmp(curr->forward_pointer[0]->key, search_key, key_size);
+  } else{
+    printf("Reached end of the skiplist, didn't found key%s", search_key);
+    iter->is_valid = 0;
+    RWLOCK_UNLOCK(&curr->rw_nodelock);
+    return;
+  }
+
+  if (ret == 0){
+    iter->is_valid = 1;
+    iter->iter_node = curr->forward_pointer[0];
+    /*lock iter_node unlock curr (remember curr is always behind the correct node)*/
+    RWLOCK_RDLOCK(&iter->iter_node->rw_nodelock);
+    RWLOCK_UNLOCK(&curr->rw_nodelock);
+  } else {
+    printf("search key %s for scan init not found\n", search_key);
+    iter->is_valid = 0;
+    RWLOCK_UNLOCK(&curr->rw_nodelock);
+  }
+}
+
+/*we are searching level0 always so the next node is trivial to be found*/
+void get_next(struct skiplist_iterator* iter)
+{
+  if(iter->is_valid == 1){
+    struct skiplist_node* next_node = iter->iter_node->forward_pointer[0];
+    if(next_node->is_NIL){
+      printf("Reached end of the skplist\n");
+      iter->is_valid = 0;
+      return;
+    }
+    //next_node is valid
+    RWLOCK_UNLOCK(&iter->iter_node->rw_nodelock);
+    iter->iter_node = next_node;
+    RWLOCK_RDLOCK(&iter->iter_node->rw_nodelock);
+  } else{
+    printf("iterator is invalid\n");
+    assert(0);
+  }
+}

@@ -117,6 +117,18 @@ static void validate_number_of_kvs()
     assert(count == KVS_NUM);
 }
 
+static void validate_number_of_kvs_with_iterators()
+{
+    int count = 0;
+    struct skiplist_iterator iter;
+    init_iterator(&iter, &my_skiplist, "ts0"); //ts0 is the first key in this test
+    while(iter.is_valid){
+        ++count;
+        get_next(&iter);
+    }
+    assert(count = KVS_NUM);
+}
+
 int main(){
     srand(time(0));
     int i;
@@ -149,4 +161,6 @@ int main(){
 
     for(i = 0; i < NUM_OF_THREADS; i++)
         pthread_join(thread_buf[i].th, NULL);
+
+    validate_number_of_kvs_with_iterators();
 }
