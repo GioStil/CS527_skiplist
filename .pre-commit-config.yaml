@@ -1,0 +1,46 @@
+---
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+
+    - repo: https://github.com/pre-commit/pre-commit-hooks
+      rev: v4.1.0
+      hooks:
+          - id: trailing-whitespace
+            exclude: docs/
+          - id: end-of-file-fixer
+          - id: check-yaml
+          - id: check-added-large-files
+          - id: check-executables-have-shebangs
+          - id: check-merge-conflict
+          - id: forbid-new-submodules
+
+    - repo: https://github.com/cheshirekow/cmake-format-precommit
+      rev: v0.6.13
+      hooks:
+          - id: cmake-format
+
+    - repo: git://github.com/doublify/pre-commit-clang-format
+      rev: 62302476d0da01515660132d76902359bed0f782
+      hooks:
+          - id: clang-format
+
+    - repo: https://github.com/jumanjihouse/pre-commit-hooks
+      rev: 2.1.5
+      hooks:
+          - id: protect-first-parent
+          - id: forbid-binary
+
+    - repo: https://github.com/jorisroovers/gitlint
+      rev: v0.17.0
+      hooks:
+          - id: gitlint
+            stages: [commit-msg]
+            entry: gitlint
+            args: [--msg-filename]
+
+    - repo: https://github.com/jumanjihouse/pre-commit-hook-yamlfmt
+      rev: 0.1.0
+      hooks:
+          - id: yamlfmt
+            exclude: options.yml
