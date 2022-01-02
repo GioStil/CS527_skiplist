@@ -1,5 +1,5 @@
-#include <assert.h>
 #include <skiplist.h>
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,34 +51,6 @@ static struct skiplist_node *make_node(char *key, char *value, uint32_t level)
 }
 
 /*returns the biggest non-null level*/
-static uint32_t calculate_level(struct skiplist *skplist)
-{
-	uint32_t i;
-	//MAX_LEVELS - 1 cause we want a number from range [0,MAX_LEVELS-1]
-	for (i = 0; i < MAX_LEVELS - 1 && rand() % 2 == 0; i++)
-		;
-
-	return i;
-}
-
-static struct skiplist_node *make_node(char *key, char *value, uint32_t level)
-{
-	uint32_t key_size = strlen(key) + 1;
-	uint32_t value_size = strlen(value) + 1;
-	struct skiplist_node *new_node = (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
-
-	new_node->level = level;
-	new_node->key = malloc(key_size);
-	new_node->value = malloc(value_size);
-
-	memcpy(new_node->key, key, key_size);
-	memcpy(new_node->value, value, value_size);
-	new_node->is_NIL = 0;
-
-	RWLOCK_INIT(&new_node->rw_nodelock, NULL);
-	return new_node;
-}
-
 static uint32_t calculate_level(struct skiplist *skplist)
 {
 	uint32_t i, lvl = 0;
