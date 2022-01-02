@@ -3,8 +3,8 @@
 #define MAX_LEVELS \
 	8 //this variable will be at conf file. It shows the max_levels of the skiplist \
 		//it should be allocated according to L0 size
-#include <inttypes.h>
 #include <pthread.h>
+#include <stdint.h>
 
 struct skiplist_node {
 	pthread_rwlock_t rw_nodelock;

@@ -1,5 +1,8 @@
 #include <assert.h>
+#include <inttypes.h>
+#include <pthread.h>
 #include <skiplist.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,6 +47,7 @@ static void *populate_the_skiplist(void *args)
 		sprintf(key + strlen(KV_PREFIX), "%llu", (long long unsigned)i);
 		insert_skiplist(&my_skiplist, key, key);
 	}
+	pthread_exit(NULL);
 }
 
 static void test_random_level_generator()
@@ -67,7 +71,7 @@ static void print_each_level_size(struct skiplist skplist)
 			count++;
 			curr = curr->forward_pointer[i];
 		}
-		printf("level's %llu size is %llu\n", i, count);
+		printf("level's %" PRIu64 "size is %" PRIu64 "\n", i, count);
 	}
 }
 
@@ -103,6 +107,7 @@ static void *search_the_skiplist(void *args)
 		assert(ret_val != NULL);
 		assert(memcmp(ret_val, key, strlen(key)) == 0); //keys and value are same in this test
 	}
+	pthread_exit(NULL);
 }
 
 static void validate_number_of_kvs()
@@ -126,7 +131,7 @@ static void validate_number_of_kvs_with_iterators()
 		++count;
 		get_next(&iter);
 	}
-	assert(count = KVS_NUM);
+	assert(KVS_NUM == count);
 }
 
 int main()
