@@ -1,0 +1,20 @@
+---
+name: Check code with include what you use
+on: [push]
+jobs:
+    iwyu:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
+
+            - name: Prepare environment
+              run: sudo pip install compdb && sudo apt install -y iwyu clang-9
+
+            - name: Configure build
+              run: cmake -Bbuild -H$GITHUB_WORKSPACE
+
+            - name: Create new compilation database
+              run: compdb -p build/ list > compile_commands.json
+
+            - name: Run Include What You Use
+              run: iwyu_tool -p compile_commands.json
