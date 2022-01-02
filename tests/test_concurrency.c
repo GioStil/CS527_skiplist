@@ -1,5 +1,8 @@
 #include <assert.h>
+#include <inttypes.h>
+#include <pthread.h>
 #include <skiplist.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -57,6 +60,7 @@ static void *populate_the_skiplist(void *args)
 		insert_skiplist(&concurrent_skiplist, key, key);
 		//print_skplist(&my_skiplist);
 	}
+	pthread_exit(NULL);
 }
 
 static void validate_number_of_KVS(struct skiplist skplist)
@@ -83,7 +87,7 @@ static void print_each_level_size(struct skiplist skplist)
 			count++;
 			curr = curr->forward_pointer[i];
 		}
-		printf("level's %llu size is %llu\n", i, count);
+		printf("level's %" PRIu64 "size is %" PRIu64 "\n", i, count);
 	}
 }
 
