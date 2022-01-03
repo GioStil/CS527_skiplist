@@ -256,7 +256,7 @@ void insert_skiplist(struct skiplist *skplist, char *key, char *value)
 	} else { //insert logic
 		int new_node_lvl = random_level();
 		struct skiplist_node *new_node = make_node(key, value, new_node_lvl);
-		MUTEX_LOCK(&levels_lock_buf[new_node->level]);
+		//MUTEX_LOCK(&levels_lock_buf[new_node->level]); //needed for concurrent deletes
 
 		//we need to update the header correcly cause new_node_lvl > lvl
 		for (i = lvl + 1; i <= new_node_lvl; i++)
@@ -273,7 +273,7 @@ void insert_skiplist(struct skiplist *skplist, char *key, char *value)
 			RWLOCK_UNLOCK(&curr->rw_nodelock);
 		}
 
-		MUTEX_UNLOCK(&levels_lock_buf[new_node->level]);
+		//MUTEX_UNLOCK(&levels_lock_buf[new_node->level]); //needed for concurrent deletes
 	}
 }
 

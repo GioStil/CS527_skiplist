@@ -73,7 +73,7 @@ static void validate_number_of_KVS(struct skiplist skplist)
 		count++;
 	}
 
-	assert(count - 1 == KVS_NUM); //-1 for the header node
+	assert(count == KVS_NUM); //-1 for the header node
 }
 static void print_each_level_size(struct skiplist skplist)
 {
