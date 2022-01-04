@@ -1,9 +1,7 @@
 include(PreventInSouceBuilds.cmake.in)
 cmake_minimum_required(VERSION 3.17)
-project(Skiplist LANGUAGES C CXX)
-
 project(
-  Skiplist
+  skiplist
   VERSION 1.0.0
   LANGUAGES C CXX)
 

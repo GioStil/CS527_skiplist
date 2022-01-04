@@ -26,7 +26,7 @@ struct skiplist {
 	struct skiplist_node *NIL_element; //last element of the skip list
 };
 
-struct skiplist* init_skiplist(struct skiplist *skplist);
+struct skiplist *init_skiplist(struct skiplist *skplist);
 char *search_skiplist(struct skiplist *skplist, char *search_key);
 void insert_skiplist(struct skiplist *skplist, char *key, char *value);
 void delete_skiplist(struct skiplist *skplist, char *key);
