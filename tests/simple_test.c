@@ -50,15 +50,6 @@ static void *populate_the_skiplist(void *args)
 	pthread_exit(NULL);
 }
 
-static void test_random_level_generator()
-{
-	uint32_t i, rand_level;
-	for (i = 0; i < KVS_NUM; i++) {
-		rand_level = random_level();
-		assert(rand_level < MAX_LEVELS && rand_level >= 0);
-	}
-}
-
 static void print_each_level_size(struct skiplist skplist)
 {
 	uint64_t count, i;
@@ -144,8 +135,6 @@ int main()
 	assert(my_skiplist.level == 0);
 	for (i = 0; i < MAX_LEVELS; i++)
 		assert(my_skiplist.header->forward_pointer[i] == my_skiplist.NIL_element);
-
-	test_random_level_generator();
 
 	for (i = 0; i < NUM_OF_THREADS; i++) {
 		thread_buf[i].tid = (uint32_t *)malloc(sizeof(int));
