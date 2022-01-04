@@ -65,7 +65,7 @@ static uint32_t calculate_level(struct skiplist *skplist)
 }
 
 // skplist is an object called by reference
-void init_skiplist(struct skiplist *skplist)
+struct skiplist* init_skiplist(struct skiplist *skplist)
 {
 	int i;
 	// allocate NIL (sentinel)
@@ -98,6 +98,8 @@ void init_skiplist(struct skiplist *skplist)
 	// all forward pointers of header point to NIL
 	for (i = 0; i < MAX_LEVELS; i++)
 		skplist->header->forward_pointer[i] = skplist->NIL_element;
+
+	return skplist;
 }
 
 char *search_skiplist(struct skiplist *skplist, char *search_key)
