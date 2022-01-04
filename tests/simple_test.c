@@ -8,16 +8,16 @@
 #include <string.h>
 #include <time.h>
 
-#define KVS_NUM 1000000
+#define KVS_NUM 3000000
 #define KV_PREFIX "ts"
-#define NUM_OF_THREADS 8
+#define NUM_OF_THREADS 7
 
 struct thread_info {
 	pthread_t th;
 	uint32_t *tid;
 };
 
-struct skiplist* my_skiplist;
+struct skiplist *my_skiplist;
 
 static void print_skplist(struct skiplist *skplist)
 {
@@ -26,7 +26,7 @@ static void print_skplist(struct skiplist *skplist)
 		curr = skplist->header;
 		printf("keys at level %d -> ", i);
 		while (!curr->is_NIL) {
-			printf("[%s], ", curr->key);
+			printf("[%d,%s], ", curr->key_size, curr->key);
 			curr = curr->forward_pointer[i];
 		}
 		printf("\n");
@@ -38,14 +38,15 @@ static void *populate_the_skiplist(void *args)
 	int i, from, to;
 	char *key = malloc(strlen(KV_PREFIX) + sizeof(long long unsigned));
 	int *tid = (int *)args;
-
+	uint32_t key_size;
 	from = (int)(((*tid) / (double)NUM_OF_THREADS) * KVS_NUM);
 	to = (int)(((*tid + 1) / (double)NUM_OF_THREADS) * KVS_NUM);
 	printf("inserting from %d to %d\n", from, to);
 	for (i = from; i < to; i++) {
 		memcpy(key, KV_PREFIX, strlen(KV_PREFIX));
 		sprintf(key + strlen(KV_PREFIX), "%llu", (long long unsigned)i);
-		insert_skiplist(my_skiplist, key, key);
+		key_size = strlen(key);
+		insert_skiplist(my_skiplist, key_size, key, key_size, key);
 	}
 	pthread_exit(NULL);
 }
@@ -87,6 +88,7 @@ static void *search_the_skiplist(void *args)
 	char *key = malloc(strlen(KV_PREFIX) + sizeof(long long unsigned));
 	int *tid = (int *)args;
 	char *ret_val;
+	uint32_t key_size;
 
 	from = (int)(((*tid) / (double)NUM_OF_THREADS) * KVS_NUM);
 	to = (int)(((*tid + 1) / (double)NUM_OF_THREADS) * KVS_NUM);
@@ -94,7 +96,8 @@ static void *search_the_skiplist(void *args)
 	for (i = from; i < to; i++) {
 		memcpy(key, KV_PREFIX, strlen(KV_PREFIX));
 		sprintf(key + strlen(KV_PREFIX), "%llu", (unsigned long long)i);
-		ret_val = search_skiplist(my_skiplist, key);
+		key_size = strlen(key);
+		ret_val = search_skiplist(my_skiplist, key_size, key);
 		assert(ret_val != NULL);
 		assert(memcmp(ret_val, key, strlen(key)) == 0); //keys and value are same in this test
 	}
@@ -158,6 +161,5 @@ int main()
 		pthread_join(thread_buf[i].th, NULL);
 
 	validate_number_of_kvs_with_iterators();
-
 	free_skiplist(my_skiplist);
 }

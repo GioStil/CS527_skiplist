@@ -9,7 +9,9 @@ struct skiplist_node {
 	pthread_rwlock_t rw_nodelock;
 	struct skiplist_node *forward_pointer[MAX_LEVELS];
 	uint32_t level;
+	uint32_t key_size;
 	char *key;
+	uint32_t value_size;
 	char *value;
 	uint8_t is_NIL;
 };
@@ -27,8 +29,8 @@ struct skiplist {
 };
 
 struct skiplist *init_skiplist(void);
-char *search_skiplist(struct skiplist *skplist, char *search_key);
-void insert_skiplist(struct skiplist *skplist, char *key, char *value);
+char *search_skiplist(struct skiplist *skplist, uint32_t key_size, char *search_key);
+void insert_skiplist(struct skiplist *skplist, uint32_t key_size, char *key, uint32_t value_size, char *value);
 void delete_skiplist(struct skiplist *skplist, char *key);
 void free_skiplist(struct skiplist *skplist);
 /*iterators staff*/

@@ -8,15 +8,15 @@
 #include <string.h>
 #include <time.h>
 
-#define KVS_NUM 100
+#define KVS_NUM 1000000
 #define KV_PREFIX "ts"
-#define NUM_OF_THREADS 8
+#define NUM_OF_THREADS 6
 
 struct thread_info {
 	pthread_t th;
 	uint32_t *tid;
 };
-struct skiplist* concurrent_skiplist;
+struct skiplist *concurrent_skiplist;
 
 static void print_skplist(struct skiplist *skplist)
 {
@@ -36,11 +36,12 @@ static void populate_skiplist_with_single_writer(struct skiplist *skplist)
 {
 	int i;
 	char *key = malloc(strlen(KV_PREFIX) + sizeof(long long unsigned));
-
+	uint32_t key_size;
 	for (i = 0; i < KVS_NUM; i++) {
 		memcpy(key, KV_PREFIX, strlen(KV_PREFIX));
 		sprintf(key + strlen(KV_PREFIX), "%llu", (long long unsigned)i);
-		insert_skiplist(skplist, key, key);
+		key_size = strlen(key);
+		insert_skiplist(skplist, key_size, key, key_size, key);
 	}
 }
 
@@ -49,7 +50,7 @@ static void *populate_the_skiplist(void *args)
 	int i, from, to;
 	char *key = malloc(strlen(KV_PREFIX) + sizeof(long long unsigned));
 	int *tid = (int *)args;
-
+	uint32_t key_size;
 	from = (int)(((*tid) / (double)NUM_OF_THREADS) * KVS_NUM);
 	to = (int)(((*tid + 1) / (double)NUM_OF_THREADS) * KVS_NUM);
 	printf("inserting from %d to %d\n", from, to);
@@ -57,13 +58,14 @@ static void *populate_the_skiplist(void *args)
 		memcpy(key, KV_PREFIX, strlen(KV_PREFIX));
 		sprintf(key + strlen(KV_PREFIX), "%llu", (long long unsigned)i);
 		//printf("Inserting key%s\n",key);
-		insert_skiplist(concurrent_skiplist, key, key);
+		key_size = strlen(key);
+		insert_skiplist(concurrent_skiplist, key_size, key, key_size, key);
 		//print_skplist(&my_skiplist);
 	}
 	pthread_exit(NULL);
 }
 
-static void validate_number_of_KVS(struct skiplist* skplist)
+static void validate_number_of_KVS(struct skiplist *skplist)
 {
 	int count;
 	struct skiplist_node *curr = skplist->header;
@@ -72,9 +74,10 @@ static void validate_number_of_KVS(struct skiplist* skplist)
 		curr = curr->forward_pointer[0];
 		++count;
 	}
+	printf("Count is %d\n", count);
 	assert(count == KVS_NUM); //-1 for the header node
 }
-static void print_each_level_size(struct skiplist* skplist)
+static void print_each_level_size(struct skiplist *skplist)
 {
 	uint64_t count, i;
 	struct skiplist_node *curr;
@@ -93,7 +96,7 @@ static void print_each_level_size(struct skiplist* skplist)
 /*compare the lists and check if all the nodes are present in the concurrent list
  *according to the single writer list (which is correct)
  *the function checks only the level0 of the skiplists where all keys reside*/
-static void compare_the_lists(struct skiplist* clist, struct skiplist* swlist)
+static void compare_the_lists(struct skiplist *clist, struct skiplist *swlist)
 {
 	int ret;
 	struct skiplist_node *ccurr, *swcurr;
@@ -119,13 +122,12 @@ int main()
 	srand(time(0));
 	int i;
 	struct thread_info thread_buf[NUM_OF_THREADS];
-	struct skiplist* skiplist_single_writer;
+	struct skiplist *skiplist_single_writer;
 
 	skiplist_single_writer = init_skiplist();
 	concurrent_skiplist = init_skiplist();
 
 	populate_skiplist_with_single_writer(skiplist_single_writer);
-	print_skplist(skiplist_single_writer);
 	validate_number_of_KVS(skiplist_single_writer);
 
 	for (i = 0; i < NUM_OF_THREADS; i++) {
