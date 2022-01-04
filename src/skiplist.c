@@ -65,9 +65,10 @@ static uint32_t calculate_level(struct skiplist *skplist)
 }
 
 // skplist is an object called by reference
-struct skiplist *init_skiplist(struct skiplist *skplist)
+struct skiplist *init_skiplist(void)
 {
 	int i;
+	struct skiplist* skplist = (struct skiplist*) malloc(sizeof(struct skiplist));
 	// allocate NIL (sentinel)
 	skplist->NIL_element = (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
 	if (skplist->NIL_element == NULL) {

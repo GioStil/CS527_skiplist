@@ -17,7 +17,7 @@ struct thread_info {
 	uint32_t *tid;
 };
 
-struct skiplist my_skiplist;
+struct skiplist* my_skiplist;
 
 static void print_skplist(struct skiplist *skplist)
 {
@@ -45,7 +45,7 @@ static void *populate_the_skiplist(void *args)
 	for (i = from; i < to; i++) {
 		memcpy(key, KV_PREFIX, strlen(KV_PREFIX));
 		sprintf(key + strlen(KV_PREFIX), "%llu", (long long unsigned)i);
-		insert_skiplist(&my_skiplist, key, key);
+		insert_skiplist(my_skiplist, key, key);
 	}
 	pthread_exit(NULL);
 }
@@ -94,7 +94,7 @@ static void *search_the_skiplist(void *args)
 	for (i = from; i < to; i++) {
 		memcpy(key, KV_PREFIX, strlen(KV_PREFIX));
 		sprintf(key + strlen(KV_PREFIX), "%llu", (unsigned long long)i);
-		ret_val = search_skiplist(&my_skiplist, key);
+		ret_val = search_skiplist(my_skiplist, key);
 		assert(ret_val != NULL);
 		assert(memcmp(ret_val, key, strlen(key)) == 0); //keys and value are same in this test
 	}
@@ -104,7 +104,7 @@ static void *search_the_skiplist(void *args)
 static void validate_number_of_kvs()
 {
 	int count = 0;
-	struct skiplist_node *curr = my_skiplist.header->forward_pointer[0]; //skip the header
+	struct skiplist_node *curr = my_skiplist->header->forward_pointer[0]; //skip the header
 
 	while (!curr->is_NIL) {
 		++count;
@@ -117,7 +117,7 @@ static void validate_number_of_kvs_with_iterators()
 {
 	int count = 0;
 	struct skiplist_iterator iter;
-	init_iterator(&iter, &my_skiplist, "ts0"); //ts0 is the first key in this test
+	init_iterator(&iter, my_skiplist, "ts0"); //ts0 is the first key in this test
 	while (iter.is_valid) {
 		++count;
 		get_next(&iter);
@@ -131,10 +131,10 @@ int main()
 	int i;
 	struct thread_info thread_buf[NUM_OF_THREADS];
 
-	init_skiplist(&my_skiplist);
-	assert(my_skiplist.level == 0);
+	my_skiplist = init_skiplist();
+	assert(my_skiplist->level == 0);
 	for (i = 0; i < MAX_LEVELS; i++)
-		assert(my_skiplist.header->forward_pointer[i] == my_skiplist.NIL_element);
+		assert(my_skiplist->header->forward_pointer[i] == my_skiplist->NIL_element);
 
 	for (i = 0; i < NUM_OF_THREADS; i++) {
 		thread_buf[i].tid = (uint32_t *)malloc(sizeof(int));
@@ -159,5 +159,5 @@ int main()
 
 	validate_number_of_kvs_with_iterators();
 
-	free_skiplist(&my_skiplist);
+	free_skiplist(my_skiplist);
 }
