@@ -26,7 +26,7 @@ static void print_skplist(struct skiplist *skplist)
 		curr = skplist->header;
 		printf("keys at level %d -> ", i);
 		while (!curr->is_NIL) {
-			printf("[%d,%s], ", curr->key_size, curr->key);
+			printf("[%d,%s], ", curr->key_size, (char *)curr->key);
 			curr = curr->forward_pointer[i];
 		}
 		printf("\n");
@@ -120,7 +120,7 @@ static void validate_number_of_kvs_with_iterators()
 {
 	int count = 0;
 	struct skiplist_iterator iter;
-	init_iterator(&iter, my_skiplist, "ts0"); //ts0 is the first key in this test
+	init_iterator(&iter, my_skiplist, 3, "ts0"); //ts0 is the first key in this test
 	while (iter.is_valid) {
 		++count;
 		get_next(&iter);

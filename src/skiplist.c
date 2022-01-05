@@ -27,7 +27,7 @@ uint32_t random_level()
 	return i;
 }
 
-static struct skiplist_node *make_node(uint32_t key_size, char *key, uint32_t value_size, char *value, uint32_t level)
+static struct skiplist_node *make_node(uint32_t key_size, void *key, uint32_t value_size, void *value, uint32_t level)
 {
 	struct skiplist_node *new_node = (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
 
@@ -103,7 +103,7 @@ struct skiplist *init_skiplist(void)
 	return skplist;
 }
 
-char *search_skiplist(struct skiplist *skplist, uint32_t key_size, char *search_key)
+char *search_skiplist(struct skiplist *skplist, uint32_t key_size, void *search_key)
 {
 	int i, ret;
 	uint32_t node_key_size, value_size, lvl;
@@ -200,7 +200,7 @@ static struct skiplist_node *getLock(struct skiplist_node *curr, uint32_t key_si
 	return curr;
 }
 
-void insert_skiplist(struct skiplist *skplist, uint32_t key_size, char *key, uint32_t value_size, char *value)
+void insert_skiplist(struct skiplist *skplist, uint32_t key_size, void *key, uint32_t value_size, void *value)
 {
 	int i, ret;
 	uint32_t node_key_size, lvl;
@@ -338,12 +338,11 @@ void delete_skiplist(struct skiplist *skplist, char *key)
 /*iterator will hold the readlock of the corresponding search_key's node.
  ! all the inserts/update operations are valid except the ones containing that node(because for such modifications
  the write lock is needed)*/
-void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, char *search_key)
+void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, uint32_t key_size, void *search_key)
 {
 	int i, lvl;
 	struct skiplist_node *curr, *next_curr;
-	int node_key_size, key_size, ret;
-	key_size = strlen(search_key);
+	int node_key_size, ret;
 	RWLOCK_RDLOCK(&skplist->header->rw_nodelock);
 	curr = skplist->header;
 	//replace this with the hint level
@@ -355,7 +354,7 @@ void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, cha
 			if (curr->forward_pointer[i]->is_NIL) //reached sentinel for that level
 				break;
 
-			node_key_size = strlen(curr->forward_pointer[i]->key);
+			node_key_size = curr->forward_pointer[i]->key_size;
 			if (node_key_size > key_size)
 				ret = memcmp(curr->forward_pointer[i]->key, search_key, node_key_size);
 			else
@@ -374,11 +373,11 @@ void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, cha
 	//corner case
 	//next element for level 0 is sentinel, key not found
 	if (!curr->forward_pointer[0]->is_NIL) {
-		node_key_size = strlen(curr->forward_pointer[0]->key);
+		node_key_size = curr->forward_pointer[0]->key_size;
 		key_size = key_size > node_key_size ? key_size : node_key_size;
 		ret = memcmp(curr->forward_pointer[0]->key, search_key, key_size);
 	} else {
-		printf("Reached end of the skiplist, didn't found key%s", search_key);
+		printf("Reached end of the skiplist, didn't found key");
 		iter->is_valid = 0;
 		RWLOCK_UNLOCK(&curr->rw_nodelock);
 		return;
@@ -391,7 +390,7 @@ void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, cha
 		RWLOCK_RDLOCK(&iter->iter_node->rw_nodelock);
 		RWLOCK_UNLOCK(&curr->rw_nodelock);
 	} else {
-		printf("search key %s for scan init not found\n", search_key);
+		printf("search key for scan init not found\n");
 		iter->is_valid = 0;
 		RWLOCK_UNLOCK(&curr->rw_nodelock);
 	}

@@ -128,7 +128,6 @@ int main()
 	concurrent_skiplist = init_skiplist();
 
 	populate_skiplist_with_single_writer(skiplist_single_writer);
-	validate_number_of_KVS(skiplist_single_writer);
 
 	for (i = 0; i < NUM_OF_THREADS; i++) {
 		thread_buf[i].tid = (uint32_t *)malloc(sizeof(int));

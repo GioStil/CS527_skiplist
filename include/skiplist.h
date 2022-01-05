@@ -10,9 +10,9 @@ struct skiplist_node {
 	struct skiplist_node *forward_pointer[MAX_LEVELS];
 	uint32_t level;
 	uint32_t key_size;
-	char *key;
+	void *key;
 	uint32_t value_size;
-	char *value;
+	void *value;
 	uint8_t is_NIL;
 };
 
@@ -29,12 +29,12 @@ struct skiplist {
 };
 
 struct skiplist *init_skiplist(void);
-char *search_skiplist(struct skiplist *skplist, uint32_t key_size, char *search_key);
-void insert_skiplist(struct skiplist *skplist, uint32_t key_size, char *key, uint32_t value_size, char *value);
-void delete_skiplist(struct skiplist *skplist, char *key);
+char *search_skiplist(struct skiplist *skplist, uint32_t key_size, void *search_key);
+void insert_skiplist(struct skiplist *skplist, uint32_t key_size, void *key, uint32_t value_size, void *value);
+void delete_skiplist(struct skiplist *skplist, char *key); //TBI
 void free_skiplist(struct skiplist *skplist);
 /*iterators staff*/
-void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, char *search_key);
+void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, uint32_t key_size, void *search_key);
 void get_next(struct skiplist_iterator *iter);
 
 #endif // SKIPLIST_H_
