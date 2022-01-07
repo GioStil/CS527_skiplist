@@ -1,6 +1,6 @@
 #ifndef MY_SKIPLIST_IMPL_H_
 #define MY_SKIPLIST_IMPL_H_
-#define MAX_LEVELS 8 //this variable will be at conf file. It shows the max_levels of the skiplist
+#define MAX_LEVELS 12 //this variable will be at conf file. It shows the max_levels of the skiplist
 //it should be allocated according to L0 size
 #include <pthread.h>
 #include <stdint.h>
