@@ -14,14 +14,14 @@
 #define MUTEX_LOCK(L) pthread_mutex_lock(L)
 #define MUTEX_UNLOCK(L) pthread_mutex_unlock(L)
 
-pthread_mutex_t levels_lock_buf[MAX_LEVELS];
+pthread_mutex_t levels_lock_buf[SKPLIST_MAX_LEVELS];
 
 //FIXME this should be static and removed from the test file
 uint32_t random_level()
 {
 	uint32_t i;
-	//MAX_LEVELS - 1 cause we want a number from range [0,MAX_LEVELS-1]
-	for (i = 0; i < MAX_LEVELS - 1 && rand() % 4 == 0; i++)
+	//SKPLIST_MAX_LEVELS - 1 cause we want a number from range [0,SKPLIST_MAX_LEVELS-1]
+	for (i = 0; i < SKPLIST_MAX_LEVELS - 1 && rand() % 4 == 0; i++)
 		;
 
 	return i;
@@ -54,7 +54,7 @@ static struct skiplist_node *make_node(uint32_t key_size, void *key, uint32_t va
 static uint32_t calculate_level(struct skiplist *skplist)
 {
 	uint32_t i, lvl = 0;
-	for (i = 0; i < MAX_LEVELS; i++) {
+	for (i = 0; i < SKPLIST_MAX_LEVELS; i++) {
 		if (skplist->header->forward_pointer[i] != skplist->NIL_element)
 			lvl = i;
 		else
@@ -97,7 +97,7 @@ struct skiplist *init_skiplist(void)
 	}
 
 	// all forward pointers of header point to NIL
-	for (i = 0; i < MAX_LEVELS; i++)
+	for (i = 0; i < SKPLIST_MAX_LEVELS; i++)
 		skplist->header->forward_pointer[i] = skplist->NIL_element;
 
 	return skplist;
@@ -204,7 +204,7 @@ void insert_skiplist(struct skiplist *skplist, uint32_t key_size, void *key, uin
 {
 	int i, ret;
 	uint32_t node_key_size, lvl;
-	struct skiplist_node *update_vector[MAX_LEVELS];
+	struct skiplist_node *update_vector[SKPLIST_MAX_LEVELS];
 	struct skiplist_node *curr, *next_curr;
 	RWLOCK_RDLOCK(&skplist->header->rw_nodelock);
 	curr = skplist->header;
@@ -280,7 +280,7 @@ void insert_skiplist(struct skiplist *skplist, uint32_t key_size, void *key, uin
 	}
 }
 
-//update_vector is an array of size MAX_LEVELS
+//update_vector is an array of size SKPLIST_MAX_LEVELS
 static void delete_key(struct skiplist *skplist, struct skiplist_node **update_vector, struct skiplist_node *curr)
 {
 	int i;
@@ -301,7 +301,7 @@ void delete_skiplist(struct skiplist *skplist, char *key)
 {
 	int32_t i, key_size;
 	int ret;
-	struct skiplist_node *update_vector[MAX_LEVELS];
+	struct skiplist_node *update_vector[SKPLIST_MAX_LEVELS];
 	struct skiplist_node *curr = skplist->header;
 
 	key_size = strlen(key);

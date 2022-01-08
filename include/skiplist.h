@@ -1,13 +1,13 @@
 #ifndef MY_SKIPLIST_IMPL_H_
 #define MY_SKIPLIST_IMPL_H_
-#define MAX_LEVELS 12 //this variable will be at conf file. It shows the max_levels of the skiplist
+#define SKPLIST_MAX_LEVELS 12 //this variable will be at conf file. It shows the max_levels of the skiplist
 //it should be allocated according to L0 size
 #include <pthread.h>
 #include <stdint.h>
 
 struct skiplist_node {
 	pthread_rwlock_t rw_nodelock;
-	struct skiplist_node *forward_pointer[MAX_LEVELS];
+	struct skiplist_node *forward_pointer[SKPLIST_MAX_LEVELS];
 	uint32_t level;
 	uint32_t key_size;
 	void *key;
