@@ -416,6 +416,11 @@ void get_next(struct skiplist_iterator *iter)
 	}
 }
 
+uint8_t is_valid(struct skiplist_iterator *iter)
+{
+	return iter->is_valid;
+}
+
 void free_skiplist(struct skiplist *skplist)
 {
 	struct skiplist_node *curr, *next_curr;

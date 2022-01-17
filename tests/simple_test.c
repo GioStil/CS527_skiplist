@@ -121,7 +121,7 @@ static void validate_number_of_kvs_with_iterators()
 	int count = 0;
 	struct skiplist_iterator iter;
 	init_iterator(&iter, my_skiplist, 3, "ts0"); //ts0 is the first key in this test
-	while (iter.is_valid) {
+	while (is_valid(&iter)) {
 		++count;
 		get_next(&iter);
 	}

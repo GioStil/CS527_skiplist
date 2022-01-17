@@ -36,5 +36,7 @@ void free_skiplist(struct skiplist *skplist);
 /*iterators staff*/
 void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, uint32_t key_size, void *search_key);
 void get_next(struct skiplist_iterator *iter);
+/*return 1 if valid 0 if not valid*/
+uint8_t is_valid(struct skiplist_iterator *iter);
 
 #endif // SKIPLIST_H_
