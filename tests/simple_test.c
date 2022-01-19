@@ -126,14 +126,15 @@ static void validate_number_of_kvs()
 static void validate_number_of_kvs_with_iterators()
 {
 	int count = 0;
-	struct skiplist_iterator iter;
-	iter_seek_to_first(&iter, my_skiplist);
-	while (is_valid(&iter)) {
+	struct skiplist_iterator *iter = (struct skiplist_iterator *)calloc(1, sizeof(struct skiplist_iterator));
+	iter_seek_to_first(iter, my_skiplist);
+	while (is_valid(iter)) {
 		++count;
-		get_next(&iter);
+		get_next(iter);
 	}
 	printf("Count is %d\n", count);
 	assert(KVS_NUM == count);
+	skplist_close_iterator(iter);
 }
 
 int main()

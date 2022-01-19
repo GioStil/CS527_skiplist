@@ -10,7 +10,15 @@
  * IMPORTANT: the *_INLOG choices should not be used for in-memory staff!
  * BIG_INPLACE is an extra field for the skiplist
 */
-enum kv_category { SKPLIST_SMALL_INPLACE = 0, SKPLIST_SMALL_INLOG, SKPLIST_MEDIUM_INPLACE, SKPLIST_MEDIUM_INLOG, SKPLIST_BIG_INLOG, SKPLIST_UNKNOWN_LOG_CATEGORY, SKLIST_BIG_INPLACE };
+enum kv_category {
+	SKPLIST_SMALL_INPLACE = 0,
+	SKPLIST_SMALL_INLOG,
+	SKPLIST_MEDIUM_INPLACE,
+	SKPLIST_MEDIUM_INLOG,
+	SKPLIST_BIG_INLOG,
+	SKPLIST_UNKNOWN_LOG_CATEGORY,
+	SKLIST_BIG_INPLACE
+};
 
 struct skiplist_node {
 	pthread_rwlock_t rw_nodelock;
@@ -57,5 +65,5 @@ void iter_seek_to_first(struct skiplist_iterator *iter, struct skiplist *skplist
 void get_next(struct skiplist_iterator *iter);
 /*return 1 if valid 0 if not valid*/
 uint8_t is_valid(struct skiplist_iterator *iter);
-
+void skplist_close_iterator(struct skiplist_iterator *iter);
 #endif // SKIPLIST_H_

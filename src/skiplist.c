@@ -440,6 +440,12 @@ void get_next(struct skiplist_iterator *iter)
 	}
 }
 
+void skplist_close_iterator(struct skiplist_iterator *iter)
+{
+	RWLOCK_UNLOCK(&iter->iter_node->rw_nodelock);
+	free(iter);
+}
+
 uint8_t is_valid(struct skiplist_iterator *iter)
 {
 	return iter->is_valid;
