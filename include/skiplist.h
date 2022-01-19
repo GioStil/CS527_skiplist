@@ -5,6 +5,11 @@
 #include <pthread.h>
 #include <stdint.h>
 
+/* kv_category has the same format as Parallax
+ * users can define the category of their keys
+ * IMPORTANT: the *_INLOG choices should not be used for in-memory staff!*/
+enum kv_category { SMALL_IN_PLACE = 0, SMALL_INLOG, MEDIUM_INPLACE, MEDIUM_INLOG, BIG_INLOG, UNKNOWN_LOG_CATEGORY };
+
 struct skiplist_node {
 	pthread_rwlock_t rw_nodelock;
 	struct skiplist_node *forward_pointer[SKPLIST_MAX_LEVELS];
@@ -13,6 +18,8 @@ struct skiplist_node {
 	void *key;
 	uint32_t value_size;
 	void *value;
+	enum kv_category cat;
+	uint8_t tombstone : 1;
 	uint8_t is_NIL;
 };
 
@@ -28,9 +35,18 @@ struct skiplist {
 	struct skiplist_node *NIL_element; //last element of the skip list
 };
 
+struct skplist_insert_request {
+	uint32_t key_size;
+	void *key;
+	uint32_t value_size;
+	void *value;
+	enum kv_category cat;
+	uint8_t tombstone : 1;
+};
+
 struct skiplist *init_skiplist(void);
 char *search_skiplist(struct skiplist *skplist, uint32_t key_size, void *search_key);
-void insert_skiplist(struct skiplist *skplist, uint32_t key_size, void *key, uint32_t value_size, void *value);
+void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *ins_req);
 void delete_skiplist(struct skiplist *skplist, char *key); //TBI
 void free_skiplist(struct skiplist *skplist);
 /*iterators staff*/

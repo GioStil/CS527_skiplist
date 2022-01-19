@@ -27,7 +27,7 @@ uint32_t random_level()
 	return i;
 }
 
-static struct skiplist_node *make_node(uint32_t key_size, void *key, uint32_t value_size, void *value, uint32_t level)
+static struct skiplist_node *make_node(struct skplist_insert_request *ins_req, uint32_t level)
 {
 	struct skiplist_node *new_node = (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
 
@@ -38,12 +38,14 @@ static struct skiplist_node *make_node(uint32_t key_size, void *key, uint32_t va
 	}
 
 	new_node->level = level;
-	new_node->key = malloc(key_size);
-	new_node->value = malloc(value_size);
-	new_node->key_size = key_size;
-	new_node->value_size = value_size;
-	memcpy(new_node->key, key, key_size);
-	memcpy(new_node->value, value, value_size);
+	new_node->key = malloc(ins_req->key_size);
+	new_node->value = malloc(ins_req->value_size);
+	new_node->key_size = ins_req->key_size;
+	new_node->value_size = ins_req->value_size;
+	memcpy(new_node->key, ins_req->key, ins_req->key_size);
+	memcpy(new_node->value, ins_req->value, ins_req->value_size);
+	new_node->cat = ins_req->cat;
+	new_node->tombstone = ins_req->tombstone;
 	new_node->is_NIL = 0;
 
 	RWLOCK_INIT(&new_node->rw_nodelock, NULL);
@@ -200,7 +202,7 @@ static struct skiplist_node *getLock(struct skiplist_node *curr, uint32_t key_si
 	return curr;
 }
 
-void insert_skiplist(struct skiplist *skplist, uint32_t key_size, void *key, uint32_t value_size, void *value)
+void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *ins_req)
 {
 	int i, ret;
 	uint32_t node_key_size, lvl;
@@ -219,10 +221,10 @@ void insert_skiplist(struct skiplist *skplist, uint32_t key_size, void *key, uin
 			}
 
 			node_key_size = curr->forward_pointer[i]->key_size;
-			if (node_key_size > key_size)
-				ret = memcmp(curr->forward_pointer[i]->key, key, node_key_size);
+			if (node_key_size > ins_req->key_size)
+				ret = memcmp(curr->forward_pointer[i]->key, ins_req->key, node_key_size);
 			else
-				ret = memcmp(curr->forward_pointer[i]->key, key, key_size);
+				ret = memcmp(curr->forward_pointer[i]->key, ins_req->key, ins_req->key_size);
 
 			if (ret < 0) {
 				RWLOCK_UNLOCK(&curr->rw_nodelock);
@@ -237,27 +239,27 @@ void insert_skiplist(struct skiplist *skplist, uint32_t key_size, void *key, uin
 			//think that the concurrent inserts can update the list in the meanwhile
 	}
 
-	curr = getLock(curr, key_size, key, 0);
+	curr = getLock(curr, ins_req->key_size, ins_req->key, 0);
 	//compare forward's key with the key
 	//take as key_size the bigger key else we could have conflicts with e.g. 5 and 50 key
 	if (!curr->forward_pointer[0]->is_NIL) {
 		node_key_size = curr->forward_pointer[0]->key_size;
-		if (node_key_size > key_size)
-			ret = memcmp(curr->forward_pointer[0]->key, key, node_key_size);
+		if (node_key_size > ins_req->key_size)
+			ret = memcmp(curr->forward_pointer[0]->key, ins_req->key, node_key_size);
 		else
-			ret = memcmp(curr->forward_pointer[0]->key, key, key_size);
+			ret = memcmp(curr->forward_pointer[0]->key, ins_req->key, ins_req->key_size);
 	} else
 		ret = 1;
 
 	//updates are done only with the curr node write locked, so we dont have race using the
 	//forward pointer
 	if (ret == 0) { //update logic
-		curr->forward_pointer[0]->value = strdup(value); //FIXME change strdup
+		curr->forward_pointer[0]->value = strdup(ins_req->value); //FIXME change strdup
 		RWLOCK_UNLOCK(&curr->rw_nodelock);
 		return;
 	} else { //insert logic
 		int new_node_lvl = random_level();
-		struct skiplist_node *new_node = make_node(key_size, key, value_size, value, new_node_lvl);
+		struct skiplist_node *new_node = make_node(ins_req, new_node_lvl);
 		//MUTEX_LOCK(&levels_lock_buf[new_node->level]); //needed for concurrent deletes
 
 		//we need to update the header correcly cause new_node_lvl > lvl
@@ -267,7 +269,7 @@ void insert_skiplist(struct skiplist *skplist, uint32_t key_size, void *key, uin
 		for (i = 0; i <= new_node->level; i++) {
 			//update_vector might be altered, find the correct rightmost node if it has changed
 			if (i != 0) {
-				curr = getLock(update_vector[i], key_size, key,
+				curr = getLock(update_vector[i], ins_req->key_size, ins_req->key,
 					       i); //we can change curr now cause level i-1 has
 			} //effectivly the new node and our job is done
 			//linking logic

@@ -8,7 +8,7 @@
 #include <string.h>
 #include <time.h>
 
-#define KVS_NUM 50000000
+#define KVS_NUM 1000000
 #define KV_PREFIX "ts"
 #define NUM_OF_THREADS 7
 
@@ -39,6 +39,7 @@ static void *populate_the_skiplist(void *args)
 	char *key = malloc(strlen(KV_PREFIX) + sizeof(long long unsigned));
 	int *tid = (int *)args;
 	uint32_t key_size;
+	struct skplist_insert_request ins_req;
 	from = (int)(((*tid) / (double)NUM_OF_THREADS) * KVS_NUM);
 	to = (int)(((*tid + 1) / (double)NUM_OF_THREADS) * KVS_NUM);
 	printf("inserting from %d to %d\n", from, to);
@@ -46,7 +47,13 @@ static void *populate_the_skiplist(void *args)
 		memcpy(key, KV_PREFIX, strlen(KV_PREFIX));
 		sprintf(key + strlen(KV_PREFIX), "%llu", (long long unsigned)i);
 		key_size = strlen(key);
-		insert_skiplist(my_skiplist, key_size, key, key_size, key);
+		ins_req.key_size = key_size;
+		ins_req.key = key;
+		ins_req.value_size = key_size;
+		ins_req.value = key;
+		ins_req.cat = SMALL_IN_PLACE;
+		ins_req.tombstone = 0;
+		insert_skiplist(my_skiplist, &ins_req);
 	}
 	pthread_exit(NULL);
 }

@@ -35,13 +35,20 @@ static void print_skplist(struct skiplist *skplist)
 static void populate_skiplist_with_single_writer(struct skiplist *skplist)
 {
 	int i;
+	struct skplist_insert_request ins_req;
 	char *key = malloc(strlen(KV_PREFIX) + sizeof(long long unsigned));
 	uint32_t key_size;
 	for (i = 0; i < KVS_NUM; i++) {
 		memcpy(key, KV_PREFIX, strlen(KV_PREFIX));
 		sprintf(key + strlen(KV_PREFIX), "%llu", (long long unsigned)i);
 		key_size = strlen(key);
-		insert_skiplist(skplist, key_size, key, key_size, key);
+		ins_req.key_size = key_size;
+		ins_req.key = key;
+		ins_req.value = key;
+		ins_req.value_size = key_size;
+		ins_req.cat = SMALL_IN_PLACE;
+		ins_req.tombstone = 0;
+		insert_skiplist(skplist, &ins_req);
 	}
 }
 
@@ -51,15 +58,21 @@ static void *populate_the_skiplist(void *args)
 	char *key = malloc(strlen(KV_PREFIX) + sizeof(long long unsigned));
 	int *tid = (int *)args;
 	uint32_t key_size;
+	struct skplist_insert_request ins_req;
 	from = (int)(((*tid) / (double)NUM_OF_THREADS) * KVS_NUM);
 	to = (int)(((*tid + 1) / (double)NUM_OF_THREADS) * KVS_NUM);
 	printf("inserting from %d to %d\n", from, to);
 	for (i = from; i < to; i++) {
 		memcpy(key, KV_PREFIX, strlen(KV_PREFIX));
 		sprintf(key + strlen(KV_PREFIX), "%llu", (long long unsigned)i);
-		//printf("Inserting key%s\n",key);
 		key_size = strlen(key);
-		insert_skiplist(concurrent_skiplist, key_size, key, key_size, key);
+		ins_req.key_size = key_size;
+		ins_req.key = key;
+		ins_req.value = key;
+		ins_req.value_size = key_size;
+		ins_req.cat = SMALL_IN_PLACE;
+		ins_req.tombstone = 0;
+		insert_skiplist(concurrent_skiplist, &ins_req);
 		//print_skplist(&my_skiplist);
 	}
 	pthread_exit(NULL);
