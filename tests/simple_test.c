@@ -51,7 +51,7 @@ static void *populate_the_skiplist(void *args)
 		ins_req.key = key;
 		ins_req.value_size = key_size;
 		ins_req.value = key;
-		ins_req.cat = SMALL_IN_PLACE;
+		ins_req.cat = SKPLIST_SMALL_INPLACE;
 		ins_req.tombstone = 0;
 		insert_skiplist(my_skiplist, &ins_req);
 	}

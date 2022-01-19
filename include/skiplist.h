@@ -7,8 +7,10 @@
 
 /* kv_category has the same format as Parallax
  * users can define the category of their keys
- * IMPORTANT: the *_INLOG choices should not be used for in-memory staff!*/
-enum kv_category { SMALL_IN_PLACE = 0, SMALL_INLOG, MEDIUM_INPLACE, MEDIUM_INLOG, BIG_INLOG, UNKNOWN_LOG_CATEGORY };
+ * IMPORTANT: the *_INLOG choices should not be used for in-memory staff!
+ * BIG_INPLACE is an extra field for the skiplist
+*/
+enum kv_category { SKPLIST_SMALL_INPLACE = 0, SKPLIST_SMALL_INLOG, SKPLIST_MEDIUM_INPLACE, SKPLIST_MEDIUM_INLOG, SKPLIST_BIG_INLOG, SKPLIST_UNKNOWN_LOG_CATEGORY, SKLIST_BIG_INPLACE };
 
 struct skiplist_node {
 	pthread_rwlock_t rw_nodelock;
