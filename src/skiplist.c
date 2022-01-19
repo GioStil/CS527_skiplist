@@ -105,11 +105,11 @@ struct skiplist *init_skiplist(void)
 	return skplist;
 }
 
-char *search_skiplist(struct skiplist *skplist, uint32_t key_size, void *search_key)
+struct value_descriptor search_skiplist(struct skiplist *skplist, uint32_t key_size, void *search_key)
 {
 	int i, ret;
 	uint32_t node_key_size, value_size, lvl;
-	char *ret_val;
+	struct value_descriptor ret_val;
 	struct skiplist_node *curr, *next_curr;
 
 	RWLOCK_RDLOCK(&skplist->header->rw_nodelock);
@@ -151,14 +151,16 @@ char *search_skiplist(struct skiplist *skplist, uint32_t key_size, void *search_
 	}
 
 	if (ret == 0) {
-		value_size = curr->forward_pointer[0]->value_size;
-		ret_val = malloc(value_size);
-		memcpy(ret_val, curr->forward_pointer[0]->value, value_size);
+		ret_val.value_size = curr->forward_pointer[0]->value_size;
+		ret_val.value = malloc(value_size);
+		memcpy(ret_val.value, curr->forward_pointer[0]->value, ret_val.value_size);
+		ret_val.found = 1;
 		RWLOCK_UNLOCK(&curr->rw_nodelock);
 		return ret_val;
 	} else {
+		ret_val.found = 0;
 		RWLOCK_UNLOCK(&curr->rw_nodelock);
-		return NULL;
+		return ret_val;
 	}
 }
 

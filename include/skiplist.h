@@ -54,8 +54,14 @@ struct skplist_insert_request {
 	uint8_t tombstone : 1;
 };
 
+struct value_descriptor {
+	void *value;
+	uint32_t value_size;
+	uint8_t found;
+};
+
 struct skiplist *init_skiplist(void);
-char *search_skiplist(struct skiplist *skplist, uint32_t key_size, void *search_key);
+struct value_descriptor search_skiplist(struct skiplist *skplist, uint32_t key_size, void *search_key);
 void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *ins_req);
 void delete_skiplist(struct skiplist *skplist, char *key); //TBI
 void free_skiplist(struct skiplist *skplist);

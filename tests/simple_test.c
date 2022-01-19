@@ -8,7 +8,7 @@
 #include <string.h>
 #include <time.h>
 
-#define KVS_NUM 1000000
+#define KVS_NUM 10000000
 #define KV_PREFIX "ts"
 #define NUM_OF_THREADS 7
 
@@ -94,7 +94,7 @@ static void *search_the_skiplist(void *args)
 	int i, from, to;
 	char *key = malloc(strlen(KV_PREFIX) + sizeof(long long unsigned));
 	int *tid = (int *)args;
-	char *ret_val;
+	struct value_descriptor ret_val;
 	uint32_t key_size;
 
 	from = (int)(((*tid) / (double)NUM_OF_THREADS) * KVS_NUM);
@@ -105,8 +105,8 @@ static void *search_the_skiplist(void *args)
 		sprintf(key + strlen(KV_PREFIX), "%llu", (unsigned long long)i);
 		key_size = strlen(key);
 		ret_val = search_skiplist(my_skiplist, key_size, key);
-		assert(ret_val != NULL);
-		assert(memcmp(ret_val, key, strlen(key)) == 0); //keys and value are same in this test
+		assert(ret_val.found == 1);
+		assert(memcmp(ret_val.value, key, ret_val.value_size) == 0); //keys and value are same in this test
 	}
 	pthread_exit(NULL);
 }
