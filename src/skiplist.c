@@ -396,6 +396,28 @@ void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, uin
 	}
 }
 
+/*initialize a scanner to the first key of the skiplist
+ *this is trivial, acquire the rdlock of the first level0 node */
+void iter_seek_to_first(struct skiplist_iterator *iter, struct skiplist *skplist)
+{
+	struct skiplist_node *curr, *next_curr;
+	RWLOCK_RDLOCK(&skplist->header->rw_nodelock);
+	curr = skplist->header;
+	next_curr = curr->forward_pointer[0];
+
+	if (!curr->forward_pointer[0]->is_NIL) {
+		iter->is_valid = 1;
+		iter->iter_node = curr->forward_pointer[0];
+		/*lock iter_node unlock curr (remember curr is always behind the correct node) */
+		RWLOCK_RDLOCK(&iter->iter_node->rw_nodelock);
+		RWLOCK_UNLOCK(&curr->rw_nodelock);
+	} else {
+		printf("Reached end of skiplist, didn't found key");
+		iter->is_valid = 0;
+		RWLOCK_UNLOCK(&curr->rw_nodelock);
+		return;
+	}
+}
 /*we are searching level0 always so the next node is trivial to be found*/
 void get_next(struct skiplist_iterator *iter)
 {

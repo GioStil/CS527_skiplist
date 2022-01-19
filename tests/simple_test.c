@@ -8,7 +8,7 @@
 #include <string.h>
 #include <time.h>
 
-#define KVS_NUM 3000000
+#define KVS_NUM 50000000
 #define KV_PREFIX "ts"
 #define NUM_OF_THREADS 7
 
@@ -120,11 +120,12 @@ static void validate_number_of_kvs_with_iterators()
 {
 	int count = 0;
 	struct skiplist_iterator iter;
-	init_iterator(&iter, my_skiplist, 3, "ts0"); //ts0 is the first key in this test
+	iter_seek_to_first(&iter, my_skiplist);
 	while (is_valid(&iter)) {
 		++count;
 		get_next(&iter);
 	}
+	printf("Count is %d\n", count);
 	assert(KVS_NUM == count);
 }
 
