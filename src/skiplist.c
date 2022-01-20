@@ -27,6 +27,35 @@ uint32_t random_level()
 	return i;
 }
 
+static int default_skiplist_comparator(void *key1, void *key2, char key1_format, char key2_format)
+{
+	uint64_t node_key_size;
+	int ret;
+	/*key1 is the curr node being examinated
+	 *meaning the curr->forward[i] */
+	struct skiplist_node *curr_forward = (struct skiplist_node *)key1;
+	/*key2 is the insert request obj*/
+	struct skplist_insert_request *ins_req = (struct skplist_insert_request *)key2;
+	/*key1 and key2 formats are always KV_FORMAT*/
+
+	node_key_size = curr_forward->key_size;
+	if (node_key_size > ins_req->key_size)
+		node_key_size = ins_req->key_size;
+
+	ret = memcmp(curr_forward->key, ins_req->key, node_key_size);
+	if (ret != 0) {
+		return ret;
+	}
+
+	/*if ret == 0 but sizes are not equal, larger key wins*/
+	if (curr_forward->key_size > ins_req->key_size)
+		return 1;
+	if (curr_forward->key_size < ins_req->key_size)
+		return -1;
+	/*keys are equal*/
+	return 0;
+}
+
 static struct skiplist_node *make_node(struct skplist_insert_request *ins_req, uint32_t level)
 {
 	struct skiplist_node *new_node = (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
@@ -102,7 +131,14 @@ struct skiplist *init_skiplist(void)
 	for (i = 0; i < SKPLIST_MAX_LEVELS; i++)
 		skplist->header->forward_pointer[i] = skplist->NIL_element;
 
+	skplist->comparator = default_skiplist_comparator;
+
 	return skplist;
+}
+
+void change_comparator_of_skiplist(struct skiplist *skplist, int (*comparator)(void *, void *, char, char))
+{
+	skplist->comparator = comparator;
 }
 
 struct value_descriptor search_skiplist(struct skiplist *skplist, uint32_t key_size, void *search_key)
@@ -165,7 +201,8 @@ struct value_descriptor search_skiplist(struct skiplist *skplist, uint32_t key_s
 }
 
 /*(write)lock the node in front of node *key* at level lvl*/
-static struct skiplist_node *getLock(struct skiplist_node *curr, uint32_t key_size, char *key, int lvl)
+static struct skiplist_node *getLock(struct skiplist *skplist, struct skiplist_node *curr,
+				     struct skplist_insert_request *ins_req, int lvl)
 {
 	//see if we can advance further due to parallel modifications
 	//first proceed with read locks, then acquire write locks
@@ -187,11 +224,7 @@ static struct skiplist_node *getLock(struct skiplist_node *curr, uint32_t key_si
 		if (curr->forward_pointer[lvl]->is_NIL)
 			break;
 
-		node_key_size = curr->forward_pointer[lvl]->key_size;
-		if (node_key_size > key_size)
-			ret = memcmp(curr->forward_pointer[lvl]->key, key, node_key_size);
-		else
-			ret = memcmp(curr->forward_pointer[lvl]->key, key, key_size);
+		ret = skplist->comparator(curr->forward_pointer[lvl], ins_req, SKPLIST_KV_FORMAT, SKPLIST_KV_FORMAT);
 
 		if (ret < 0) {
 			RWLOCK_UNLOCK(&curr->rw_nodelock);
@@ -222,11 +255,8 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 				break;
 			}
 
-			node_key_size = curr->forward_pointer[i]->key_size;
-			if (node_key_size > ins_req->key_size)
-				ret = memcmp(curr->forward_pointer[i]->key, ins_req->key, node_key_size);
-			else
-				ret = memcmp(curr->forward_pointer[i]->key, ins_req->key, ins_req->key_size);
+			ret = skplist->comparator(curr->forward_pointer[i], ins_req, SKPLIST_KV_FORMAT,
+						  SKPLIST_KV_FORMAT);
 
 			if (ret < 0) {
 				RWLOCK_UNLOCK(&curr->rw_nodelock);
@@ -241,16 +271,11 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 			//think that the concurrent inserts can update the list in the meanwhile
 	}
 
-	curr = getLock(curr, ins_req->key_size, ins_req->key, 0);
+	curr = getLock(skplist, curr, ins_req, 0);
 	//compare forward's key with the key
-	//take as key_size the bigger key else we could have conflicts with e.g. 5 and 50 key
-	if (!curr->forward_pointer[0]->is_NIL) {
-		node_key_size = curr->forward_pointer[0]->key_size;
-		if (node_key_size > ins_req->key_size)
-			ret = memcmp(curr->forward_pointer[0]->key, ins_req->key, node_key_size);
-		else
-			ret = memcmp(curr->forward_pointer[0]->key, ins_req->key, ins_req->key_size);
-	} else
+	if (!curr->forward_pointer[0]->is_NIL)
+		ret = skplist->comparator(curr->forward_pointer[0], ins_req, SKPLIST_KV_FORMAT, SKPLIST_KV_FORMAT);
+	else
 		ret = 1;
 
 	//updates are done only with the curr node write locked, so we dont have race using the
@@ -271,7 +296,7 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 		for (i = 0; i <= new_node->level; i++) {
 			//update_vector might be altered, find the correct rightmost node if it has changed
 			if (i != 0) {
-				curr = getLock(update_vector[i], ins_req->key_size, ins_req->key,
+				curr = getLock(skplist, update_vector[i], ins_req,
 					       i); //we can change curr now cause level i-1 has
 			} //effectivly the new node and our job is done
 			//linking logic

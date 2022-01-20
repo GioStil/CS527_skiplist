@@ -20,6 +20,8 @@ enum kv_category {
 	SKLIST_BIG_INPLACE
 };
 
+enum kv_type { SKPLIST_KV_INPLACE, SKPLIST_KV_FORMAT };
+
 struct skiplist_node {
 	pthread_rwlock_t rw_nodelock;
 	struct skiplist_node *forward_pointer[SKPLIST_MAX_LEVELS];
@@ -43,6 +45,11 @@ struct skiplist {
 	uint32_t level; //this variable will be used as the level hint
 	struct skiplist_node *header;
 	struct skiplist_node *NIL_element; //last element of the skip list
+	/* a generic key comparator, comparator should return:
+	 * > 0 if key1 > key2
+	 * < 0 key2 > key1
+	 * 0 if key1 == key2 */
+	int (*comparator)(void *key1, void *key2, char key1_format, char key2_format);
 };
 
 struct skplist_insert_request {
@@ -60,7 +67,10 @@ struct value_descriptor {
 	uint8_t found;
 };
 
-struct skiplist *init_skiplist(void);
+struct skiplist *init_skiplist();
+void change_comparator_of_skiplist(struct skiplist *skplist,
+				   int (*comparator)(void *key1, void *key2, char key1_format, char key2_format));
+/*skiplist operations*/
 struct value_descriptor search_skiplist(struct skiplist *skplist, uint32_t key_size, void *search_key);
 void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *ins_req);
 void delete_skiplist(struct skiplist *skplist, char *key); //TBI

@@ -8,7 +8,7 @@
 #include <string.h>
 #include <time.h>
 
-#define KVS_NUM 10000000
+#define KVS_NUM 2000000
 #define KV_PREFIX "ts"
 #define NUM_OF_THREADS 7
 
