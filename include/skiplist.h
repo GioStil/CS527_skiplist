@@ -76,6 +76,9 @@ struct value_descriptor {
 struct skiplist *init_skiplist(void);
 void change_comparator_of_skiplist(struct skiplist *skplist,
 				   int (*comparator)(void *key1, void *key2, char key1_format, char key2_format));
+
+void change_allocator_of_skiplist(struct skiplist *skplist,
+				  struct skiplist_node *make_node(struct skplist_insert_request *ins_req));
 /*skiplist operations*/
 struct value_descriptor search_skiplist(struct skiplist *skplist, uint32_t key_size, void *search_key);
 void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *ins_req);

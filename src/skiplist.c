@@ -140,7 +140,15 @@ struct skiplist *init_skiplist(void)
 
 void change_comparator_of_skiplist(struct skiplist *skplist, int (*comparator)(void *, void *, char, char))
 {
+	assert(skplist != NULL);
 	skplist->comparator = comparator;
+}
+
+void change_node_allocator_of_skiplist(struct skiplist *skplist,
+				       struct skiplist_node *make_node(struct skplist_insert_request *ins_req))
+{
+	assert(skplist != NULL);
+	skplist->make_node = make_node;
 }
 
 struct value_descriptor search_skiplist(struct skiplist *skplist, uint32_t key_size, void *search_key)
