@@ -20,7 +20,7 @@ enum kv_category {
 	SKLIST_BIG_INPLACE
 };
 
-enum kv_type { SKPLIST_KV_INPLACE, SKPLIST_KV_FORMAT };
+enum kv_type { SKPLIST_KV_FORMAT = 19, SKPLIST_KV_PREFIX = 20 };
 
 struct skiplist_node {
 	/*for parallax use*/
