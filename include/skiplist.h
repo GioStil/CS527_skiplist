@@ -28,7 +28,7 @@ struct skiplist_node {
 	uint32_t level;
 	uint32_t key_size;
 	void *key;
-	uint32_t value_size;
+	uint64_t value_size;
 	void *value;
 	enum kv_category cat;
 	uint8_t tombstone : 1;
