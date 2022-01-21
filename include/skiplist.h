@@ -44,6 +44,7 @@ struct skiplist_iterator {
 };
 
 struct skplist_insert_request {
+	uint64_t kv_dev_offt;
 	uint32_t key_size;
 	void *key;
 	uint32_t value_size;
