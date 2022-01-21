@@ -41,6 +41,15 @@ struct skiplist_iterator {
 	struct skiplist_node *iter_node;
 };
 
+struct skplist_insert_request {
+	uint32_t key_size;
+	void *key;
+	uint32_t value_size;
+	void *value;
+	enum kv_category cat;
+	uint8_t tombstone : 1;
+};
+
 struct skiplist {
 	uint32_t level; //this variable will be used as the level hint
 	struct skiplist_node *header;
@@ -50,15 +59,9 @@ struct skiplist {
 	 * < 0 key2 > key1
 	 * 0 if key1 == key2 */
 	int (*comparator)(void *key1, void *key2, char key1_format, char key2_format);
-};
 
-struct skplist_insert_request {
-	uint32_t key_size;
-	void *key;
-	uint32_t value_size;
-	void *value;
-	enum kv_category cat;
-	uint8_t tombstone : 1;
+	/* generic node allocator */
+	struct skiplist_node* (*make_node)(struct skplist_insert_request* ins_req);
 };
 
 struct value_descriptor {

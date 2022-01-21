@@ -56,7 +56,7 @@ static int default_skiplist_comparator(void *key1, void *key2, char key1_format,
 	return 0;
 }
 
-static struct skiplist_node *make_node(struct skplist_insert_request *ins_req, uint32_t level)
+static struct skiplist_node *default_make_node(struct skplist_insert_request *ins_req)
 {
 	struct skiplist_node *new_node = (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
 
@@ -66,13 +66,14 @@ static struct skiplist_node *make_node(struct skplist_insert_request *ins_req, u
 		exit(EXIT_FAILURE);
 	}
 
-	new_node->level = level;
+	/*create a node with the in-place kv*/
 	new_node->key = malloc(ins_req->key_size);
 	new_node->value = malloc(ins_req->value_size);
 	new_node->key_size = ins_req->key_size;
 	new_node->value_size = ins_req->value_size;
 	memcpy(new_node->key, ins_req->key, ins_req->key_size);
 	memcpy(new_node->value, ins_req->value, ins_req->value_size);
+
 	new_node->cat = ins_req->cat;
 	new_node->tombstone = ins_req->tombstone;
 	new_node->is_NIL = 0;
@@ -132,6 +133,7 @@ struct skiplist *init_skiplist(void)
 		skplist->header->forward_pointer[i] = skplist->NIL_element;
 
 	skplist->comparator = default_skiplist_comparator;
+	skplist->make_node = default_make_node;
 
 	return skplist;
 }
@@ -286,7 +288,8 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 		return;
 	} else { //insert logic
 		int new_node_lvl = random_level();
-		struct skiplist_node *new_node = make_node(ins_req, new_node_lvl);
+		struct skiplist_node *new_node = skplist->make_node(ins_req);
+		new_node->level = new_node_lvl;
 		//MUTEX_LOCK(&levels_lock_buf[new_node->level]); //needed for concurrent deletes
 
 		//we need to update the header correcly cause new_node_lvl > lvl
