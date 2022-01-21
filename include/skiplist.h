@@ -23,6 +23,8 @@ enum kv_category {
 enum kv_type { SKPLIST_KV_INPLACE, SKPLIST_KV_FORMAT };
 
 struct skiplist_node {
+	/*for parallax use*/
+	uint64_t kv_dev_offt;
 	pthread_rwlock_t rw_nodelock;
 	struct skiplist_node *forward_pointer[SKPLIST_MAX_LEVELS];
 	uint32_t level;
