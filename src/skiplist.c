@@ -38,19 +38,19 @@ static int default_skiplist_comparator(void *key1, void *key2, char key1_format,
 	struct skplist_insert_request *ins_req = (struct skplist_insert_request *)key2;
 	/*key1 and key2 formats are always KV_FORMAT*/
 
-	node_key_size = curr_forward->key_size;
+	node_key_size = curr_forward->kv->key_size;
 	if (node_key_size > ins_req->key_size)
 		node_key_size = ins_req->key_size;
 
-	ret = memcmp(curr_forward->key, ins_req->key, node_key_size);
+	ret = memcmp(curr_forward->kv->key, ins_req->key, node_key_size);
 	if (ret != 0) {
 		return ret;
 	}
 
 	/*if ret == 0 but sizes are not equal, larger key wins*/
-	if (curr_forward->key_size > ins_req->key_size)
+	if (curr_forward->kv->key_size > ins_req->key_size)
 		return 1;
-	if (curr_forward->key_size < ins_req->key_size)
+	if (curr_forward->kv->key_size < ins_req->key_size)
 		return -1;
 	/*keys are equal*/
 	return 0;
@@ -59,22 +59,20 @@ static int default_skiplist_comparator(void *key1, void *key2, char key1_format,
 static struct skiplist_node *default_make_node(struct skplist_insert_request *ins_req)
 {
 	struct skiplist_node *new_node = (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
-
-	if (new_node == NULL) {
+	new_node->kv = (struct node_data *)malloc(sizeof(struct node_data));
+	if (new_node == NULL || new_node->kv == NULL) {
 		printf("Malloc failed to allocate a node\n");
 		assert(0);
 		exit(EXIT_FAILURE);
 	}
 
 	/*create a node with the in-place kv*/
-	new_node->key = malloc(ins_req->key_size);
-	new_node->value = malloc(ins_req->value_size);
-	new_node->key_size = ins_req->key_size;
-	new_node->value_size = ins_req->value_size;
-	memcpy(new_node->key, ins_req->key, ins_req->key_size);
-	memcpy(new_node->value, ins_req->value, ins_req->value_size);
-
-	new_node->cat = ins_req->cat;
+	new_node->kv->key = malloc(ins_req->key_size);
+	new_node->kv->value = malloc(ins_req->value_size);
+	new_node->kv->key_size = ins_req->key_size;
+	new_node->kv->value_size = ins_req->value_size;
+	memcpy(new_node->kv->key, ins_req->key, ins_req->key_size);
+	memcpy(new_node->kv->value, ins_req->value, ins_req->value_size);
 	new_node->tombstone = ins_req->tombstone;
 	new_node->is_NIL = 0;
 
@@ -169,11 +167,11 @@ struct value_descriptor search_skiplist(struct skiplist *skplist, uint32_t key_s
 			if (curr->forward_pointer[i]->is_NIL)
 				break;
 
-			node_key_size = curr->forward_pointer[i]->key_size;
+			node_key_size = curr->forward_pointer[i]->kv->key_size;
 			if (node_key_size > key_size)
-				ret = memcmp(curr->forward_pointer[i]->key, search_key, node_key_size);
+				ret = memcmp(curr->forward_pointer[i]->kv->key, search_key, node_key_size);
 			else
-				ret = memcmp(curr->forward_pointer[i]->key, search_key, key_size);
+				ret = memcmp(curr->forward_pointer[i]->kv->key, search_key, key_size);
 
 			if (ret < 0) {
 				RWLOCK_UNLOCK(&curr->rw_nodelock);
@@ -189,17 +187,17 @@ struct value_descriptor search_skiplist(struct skiplist *skplist, uint32_t key_s
 	//corner case
 	//next element for level 0 is sentinel, key not found
 	if (!curr->forward_pointer[0]->is_NIL) {
-		node_key_size = curr->forward_pointer[0]->key_size;
+		node_key_size = curr->forward_pointer[0]->kv->key_size;
 		key_size = key_size > node_key_size ? key_size : node_key_size;
-		ret = memcmp(curr->forward_pointer[0]->key, search_key, key_size);
+		ret = memcmp(curr->forward_pointer[0]->kv->key, search_key, key_size);
 	} else {
 		ret = 1;
 	}
 
 	if (ret == 0) {
-		ret_val.value_size = curr->forward_pointer[0]->value_size;
+		ret_val.value_size = curr->forward_pointer[0]->kv->value_size;
 		ret_val.value = malloc(ret_val.value_size);
-		memcpy(ret_val.value, curr->forward_pointer[0]->value, ret_val.value_size);
+		memcpy(ret_val.value, curr->forward_pointer[0]->kv->value, ret_val.value_size);
 		ret_val.found = 1;
 		RWLOCK_UNLOCK(&curr->rw_nodelock);
 		return ret_val;
@@ -291,7 +289,7 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 	//updates are done only with the curr node write locked, so we dont have race using the
 	//forward pointer
 	if (ret == 0) { //update logic
-		curr->forward_pointer[0]->value = strdup(ins_req->value); //FIXME change strdup
+		curr->forward_pointer[0]->kv->value = strdup(ins_req->value); //FIXME change strdup
 		RWLOCK_UNLOCK(&curr->rw_nodelock);
 		return;
 	} else { //insert logic
@@ -351,7 +349,7 @@ void delete_skiplist(struct skiplist *skplist, char *key)
 			if (curr->forward_pointer[i]->is_NIL == 1)
 				break; //reached sentinel
 
-			ret = memcmp(curr->forward_pointer[i]->key, key, key_size);
+			ret = memcmp(curr->forward_pointer[i]->kv->key, key, key_size);
 			if (ret < 0)
 				curr = curr->forward_pointer[i];
 			else
@@ -363,7 +361,7 @@ void delete_skiplist(struct skiplist *skplist, char *key)
 	//retrieve it and check for existence
 	curr = curr->forward_pointer[0];
 	if (!curr->is_NIL)
-		ret = memcmp(curr->key, key, key_size);
+		ret = memcmp(curr->kv->key, key, key_size);
 	else
 		return; //Did not found the key to delete (reached sentinel)
 
@@ -394,11 +392,11 @@ void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, uin
 			if (curr->forward_pointer[i]->is_NIL) //reached sentinel for that level
 				break;
 
-			node_key_size = curr->forward_pointer[i]->key_size;
+			node_key_size = curr->forward_pointer[i]->kv->key_size;
 			if (node_key_size > key_size)
-				ret = memcmp(curr->forward_pointer[i]->key, search_key, node_key_size);
+				ret = memcmp(curr->forward_pointer[i]->kv->key, search_key, node_key_size);
 			else
-				ret = memcmp(curr->forward_pointer[i]->key, search_key, key_size);
+				ret = memcmp(curr->forward_pointer[i]->kv->key, search_key, key_size);
 
 			if (ret < 0) {
 				RWLOCK_UNLOCK(&curr->rw_nodelock);
@@ -413,9 +411,9 @@ void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, uin
 	//corner case
 	//next element for level 0 is sentinel, key not found
 	if (!curr->forward_pointer[0]->is_NIL) {
-		node_key_size = curr->forward_pointer[0]->key_size;
+		node_key_size = curr->forward_pointer[0]->kv->key_size;
 		key_size = key_size > node_key_size ? key_size : node_key_size;
-		ret = memcmp(curr->forward_pointer[0]->key, search_key, key_size);
+		ret = memcmp(curr->forward_pointer[0]->kv->key, search_key, key_size);
 	} else {
 		printf("Reached end of the skiplist, didn't found key");
 		iter->is_valid = 0;

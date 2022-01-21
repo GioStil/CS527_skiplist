@@ -8,7 +8,6 @@
 /* kv_category has the same format as Parallax
  * users can define the category of their keys
  * IMPORTANT: the *_INLOG choices should not be used for in-memory staff!
- * BIG_INPLACE is an extra field for the skiplist
 */
 enum kv_category {
 	SKPLIST_SMALL_INPLACE = 0,
@@ -22,25 +21,28 @@ enum kv_category {
 
 enum kv_type { SKPLIST_KV_FORMAT = 19, SKPLIST_KV_PREFIX = 20 };
 
+struct node_data {
+	uint64_t kv_dev_offt; /* used for ptr to log */
+	uint32_t key_size;
+	void *key;
+	uint32_t value_size;
+	void *value;
+};
+
 struct skiplist_node {
 	/*for parallax use*/
-	uint64_t kv_dev_offt;
 	pthread_rwlock_t rw_nodelock;
 	struct skiplist_node *forward_pointer[SKPLIST_MAX_LEVELS];
 	uint32_t level;
-	uint32_t key_size;
-	void *key;
-	uint64_t value_size;
-	void *value;
-	enum kv_category cat;
+	struct node_data *kv;
 	uint8_t tombstone : 1;
 	uint8_t is_NIL;
 };
 
 struct skiplist_iterator {
 	pthread_rwlock_t rw_iterlock;
-	uint8_t is_valid;
 	struct skiplist_node *iter_node;
+	uint8_t is_valid;
 };
 
 struct skplist_insert_request {
@@ -49,7 +51,6 @@ struct skplist_insert_request {
 	void *key;
 	uint32_t value_size;
 	void *value;
-	enum kv_category cat;
 	uint8_t tombstone : 1;
 };
 

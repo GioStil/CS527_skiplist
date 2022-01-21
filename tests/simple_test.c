@@ -26,7 +26,7 @@ static void print_skplist(struct skiplist *skplist)
 		curr = skplist->header;
 		printf("keys at level %d -> ", i);
 		while (!curr->is_NIL) {
-			printf("[%d,%s], ", curr->key_size, (char *)curr->key);
+			printf("[%d,%s], ", curr->kv->key_size, (char *)curr->kv->key);
 			curr = curr->forward_pointer[i];
 		}
 		printf("\n");
@@ -51,7 +51,6 @@ static void *populate_the_skiplist(void *args)
 		ins_req.key = key;
 		ins_req.value_size = key_size;
 		ins_req.value = key;
-		ins_req.cat = SKPLIST_SMALL_INPLACE;
 		ins_req.tombstone = 0;
 		insert_skiplist(my_skiplist, &ins_req);
 	}

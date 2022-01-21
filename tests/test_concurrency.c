@@ -25,7 +25,7 @@ static void print_skplist(struct skiplist *skplist)
 		curr = skplist->header;
 		printf("keys at level %d -> ", i);
 		while (!curr->is_NIL) {
-			printf("[%s], ", curr->key);
+			printf("[%s], ", curr->kv->key);
 			curr = curr->forward_pointer[i];
 		}
 		printf("\n");
@@ -46,7 +46,6 @@ static void populate_skiplist_with_single_writer(struct skiplist *skplist)
 		ins_req.key = key;
 		ins_req.value = key;
 		ins_req.value_size = key_size;
-		ins_req.cat = SKPLIST_SMALL_INPLACE;
 		ins_req.tombstone = 0;
 		insert_skiplist(skplist, &ins_req);
 	}
@@ -70,7 +69,6 @@ static void *populate_the_skiplist(void *args)
 		ins_req.key = key;
 		ins_req.value = key;
 		ins_req.value_size = key_size;
-		ins_req.cat = SKPLIST_SMALL_INPLACE;
 		ins_req.tombstone = 0;
 		insert_skiplist(concurrent_skiplist, &ins_req);
 		//print_skplist(&my_skiplist);
@@ -117,14 +115,15 @@ static void compare_the_lists(struct skiplist *clist, struct skiplist *swlist)
 	swcurr = swlist->header->forward_pointer[0]; //skip the header, start from the first key
 
 	while (swcurr->forward_pointer[0] != swlist->NIL_element) {
-		int key_size = strlen(swcurr->key) > strlen(ccurr->key) ? strlen(swcurr->key) : strlen(ccurr->key);
-		ret = memcmp(swcurr->key, ccurr->key, key_size);
+		int key_size = strlen(swcurr->kv->key) > strlen(ccurr->kv->key) ? strlen(swcurr->kv->key) :
+											strlen(ccurr->kv->key);
+		ret = memcmp(swcurr->kv->key, ccurr->kv->key, key_size);
 		if (ret == 0) { //all good step
 			swcurr = swcurr->forward_pointer[0];
 			ccurr = ccurr->forward_pointer[0];
 		} else {
-			printf("Found key %s over %s that doesnt exist at the concurrent skiplist\n", swcurr->key,
-			       ccurr->key);
+			printf("Found key %s over %s that doesnt exist at the concurrent skiplist\n", swcurr->kv->key,
+			       ccurr->kv->key);
 			break;
 		}
 	}
