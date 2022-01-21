@@ -61,7 +61,7 @@ struct skiplist {
 	int (*comparator)(void *key1, void *key2, char key1_format, char key2_format);
 
 	/* generic node allocator */
-	struct skiplist_node* (*make_node)(struct skplist_insert_request* ins_req);
+	struct skiplist_node *(*make_node)(struct skplist_insert_request *ins_req);
 };
 
 struct value_descriptor {
@@ -70,7 +70,7 @@ struct value_descriptor {
 	uint8_t found;
 };
 
-struct skiplist *init_skiplist();
+struct skiplist *init_skiplist(void);
 void change_comparator_of_skiplist(struct skiplist *skplist,
 				   int (*comparator)(void *key1, void *key2, char key1_format, char key2_format));
 /*skiplist operations*/
