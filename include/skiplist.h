@@ -4,6 +4,7 @@
 //it should be allocated according to L0 size
 #include <pthread.h>
 #include <stdint.h>
+#define LOCK_TABLE_ENTRIES 2048
 
 /* kv_category has the same format as Parallax
  * users can define the category of their keys
@@ -21,6 +22,11 @@ enum kv_category {
 
 enum kv_type { SKPLIST_KV_FORMAT = 19, SKPLIST_KV_PREFIX = 20 };
 
+struct lock_table {
+	pthread_rwlock_t rx_lock;
+	char pad[8];
+};
+
 struct node_data {
 	uint64_t kv_dev_offt; /* used for ptr to log */
 	uint32_t key_size;
@@ -30,8 +36,6 @@ struct node_data {
 };
 
 struct skiplist_node {
-	/*for parallax use*/
-	pthread_rwlock_t rw_nodelock;
 	struct skiplist_node *forward_pointer[SKPLIST_MAX_LEVELS];
 	uint32_t level;
 	struct node_data *kv;
@@ -40,7 +44,7 @@ struct skiplist_node {
 };
 
 struct skiplist_iterator {
-	pthread_rwlock_t rw_iterlock;
+	struct skiplist *iter_skplist;
 	struct skiplist_node *iter_node;
 	uint8_t is_valid;
 };
@@ -55,6 +59,7 @@ struct skplist_insert_request {
 };
 
 struct skiplist {
+	struct lock_table ltable[LOCK_TABLE_ENTRIES];
 	uint32_t level; //this variable will be used as the level hint
 	struct skiplist_node *header;
 	struct skiplist_node *NIL_element; //last element of the skip list

@@ -76,7 +76,6 @@ static struct skiplist_node *default_make_node(struct skplist_insert_request *in
 	new_node->tombstone = ins_req->tombstone;
 	new_node->is_NIL = 0;
 
-	RWLOCK_INIT(&new_node->rw_nodelock, NULL);
 	return new_node;
 }
 
@@ -108,11 +107,14 @@ struct skiplist *init_skiplist(void)
 	}
 	skplist->NIL_element->is_NIL = 1;
 	skplist->NIL_element->level = 0;
-	if (RWLOCK_INIT(&skplist->NIL_element->rw_nodelock, NULL) != 0) {
-		exit(EXIT_FAILURE);
-	}
+
 	// level is 0
 	skplist->level = 0; //FIXME this will be the level hint
+
+	for (i = 0; i < LOCK_TABLE_ENTRIES; i++) {
+		if (RWLOCK_INIT(&skplist->ltable[i].rx_lock, NULL) != 0)
+			exit(EXIT_FAILURE);
+	}
 
 	skplist->header = (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
 	if (skplist->header == NULL) {
@@ -122,9 +124,6 @@ struct skiplist *init_skiplist(void)
 	}
 	skplist->header->is_NIL = 0;
 	skplist->header->level = 0;
-	if (RWLOCK_INIT(&skplist->header->rw_nodelock, NULL) != 0) {
-		exit(EXIT_FAILURE);
-	}
 
 	// all forward pointers of header point to NIL
 	for (i = 0; i < SKPLIST_MAX_LEVELS; i++)
@@ -156,7 +155,7 @@ struct value_descriptor search_skiplist(struct skiplist *skplist, uint32_t key_s
 	struct value_descriptor ret_val;
 	struct skiplist_node *curr, *next_curr;
 
-	RWLOCK_RDLOCK(&skplist->header->rw_nodelock);
+	RWLOCK_RDLOCK(&skplist->ltable[(uint64_t)skplist->header % LOCK_TABLE_ENTRIES].rx_lock);
 	curr = skplist->header;
 	//replace this with the hint level
 	lvl = calculate_level(skplist);
@@ -174,9 +173,9 @@ struct value_descriptor search_skiplist(struct skiplist *skplist, uint32_t key_s
 				ret = memcmp(curr->forward_pointer[i]->kv->key, search_key, key_size);
 
 			if (ret < 0) {
-				RWLOCK_UNLOCK(&curr->rw_nodelock);
+				RWLOCK_UNLOCK(&skplist->ltable[(uint64_t)curr % LOCK_TABLE_ENTRIES].rx_lock);
 				curr = next_curr;
-				RWLOCK_RDLOCK(&curr->rw_nodelock);
+				RWLOCK_RDLOCK(&skplist->ltable[(uint64_t)curr % LOCK_TABLE_ENTRIES].rx_lock);
 				next_curr = curr->forward_pointer[i];
 			} else
 				break;
@@ -199,11 +198,11 @@ struct value_descriptor search_skiplist(struct skiplist *skplist, uint32_t key_s
 		ret_val.value = malloc(ret_val.value_size);
 		memcpy(ret_val.value, curr->forward_pointer[0]->kv->value, ret_val.value_size);
 		ret_val.found = 1;
-		RWLOCK_UNLOCK(&curr->rw_nodelock);
+		RWLOCK_UNLOCK(&skplist->ltable[(uint64_t)curr % LOCK_TABLE_ENTRIES].rx_lock);
 		return ret_val;
 	} else {
 		ret_val.found = 0;
-		RWLOCK_UNLOCK(&curr->rw_nodelock);
+		RWLOCK_UNLOCK(&skplist->ltable[(uint64_t)curr % LOCK_TABLE_ENTRIES].rx_lock);
 		return ret_val;
 	}
 }
@@ -216,16 +215,14 @@ static struct skiplist_node *getLock(struct skiplist *skplist, struct skiplist_n
 	//first proceed with read locks, then acquire write locks
 	/*Weak serach will be implemented later(performance issues)*/
 
-	//...
-	//
 	int ret, node_key_size;
 	struct skiplist_node *next_curr;
 
 	if (lvl == 0) //if lvl is 0 we have locked the curr due to the search accross the levels
-		RWLOCK_UNLOCK(&curr->rw_nodelock);
+		RWLOCK_UNLOCK(&skplist->ltable[(uint64_t)curr % LOCK_TABLE_ENTRIES].rx_lock);
 
 	//acquire the write locks from now on
-	RWLOCK_WRLOCK(&curr->rw_nodelock);
+	RWLOCK_WRLOCK(&skplist->ltable[(uint64_t)curr % LOCK_TABLE_ENTRIES].rx_lock);
 	next_curr = curr->forward_pointer[lvl];
 
 	while (1) {
@@ -235,9 +232,9 @@ static struct skiplist_node *getLock(struct skiplist *skplist, struct skiplist_n
 		ret = skplist->comparator(curr->forward_pointer[lvl], ins_req, SKPLIST_KV_FORMAT, SKPLIST_KV_FORMAT);
 
 		if (ret < 0) {
-			RWLOCK_UNLOCK(&curr->rw_nodelock);
+			RWLOCK_UNLOCK(&skplist->ltable[(uint64_t)curr % LOCK_TABLE_ENTRIES].rx_lock);
 			curr = next_curr;
-			RWLOCK_WRLOCK(&curr->rw_nodelock);
+			RWLOCK_WRLOCK(&skplist->ltable[(uint64_t)curr % LOCK_TABLE_ENTRIES].rx_lock);
 			next_curr = curr->forward_pointer[lvl];
 		} else
 			break;
@@ -251,7 +248,7 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 	uint32_t node_key_size, lvl;
 	struct skiplist_node *update_vector[SKPLIST_MAX_LEVELS];
 	struct skiplist_node *curr, *next_curr;
-	RWLOCK_RDLOCK(&skplist->header->rw_nodelock);
+	RWLOCK_RDLOCK(&skplist->ltable[(uint64_t)skplist->header % LOCK_TABLE_ENTRIES].rx_lock);
 	curr = skplist->header;
 	//we have the lock of the header, determine the lvl of the list
 	lvl = calculate_level(skplist);
@@ -267,9 +264,9 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 						  SKPLIST_KV_FORMAT);
 
 			if (ret < 0) {
-				RWLOCK_UNLOCK(&curr->rw_nodelock);
+				RWLOCK_UNLOCK(&skplist->ltable[(uint64_t)curr % LOCK_TABLE_ENTRIES].rx_lock);
 				curr = next_curr;
-				RWLOCK_RDLOCK(&curr->rw_nodelock);
+				RWLOCK_RDLOCK(&skplist->ltable[(uint64_t)curr % LOCK_TABLE_ENTRIES].rx_lock);
 				next_curr = curr->forward_pointer[i];
 			} else {
 				break;
@@ -290,7 +287,7 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 	//forward pointer
 	if (ret == 0) { //update logic
 		curr->forward_pointer[0]->kv->value = strdup(ins_req->value); //FIXME change strdup
-		RWLOCK_UNLOCK(&curr->rw_nodelock);
+		RWLOCK_UNLOCK(&skplist->ltable[(uint64_t)curr % LOCK_TABLE_ENTRIES].rx_lock);
 		return;
 	} else { //insert logic
 		int new_node_lvl = random_level();
@@ -311,7 +308,7 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 			//linking logic
 			new_node->forward_pointer[i] = curr->forward_pointer[i];
 			curr->forward_pointer[i] = new_node;
-			RWLOCK_UNLOCK(&curr->rw_nodelock);
+			RWLOCK_UNLOCK(&skplist->ltable[(uint64_t)curr % LOCK_TABLE_ENTRIES].rx_lock);
 		}
 
 		//MUTEX_UNLOCK(&levels_lock_buf[new_node->level]); //needed for concurrent deletes
@@ -381,7 +378,7 @@ void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, uin
 	int i, lvl;
 	struct skiplist_node *curr, *next_curr;
 	int node_key_size, ret;
-	RWLOCK_RDLOCK(&skplist->header->rw_nodelock);
+	RWLOCK_RDLOCK(&skplist->ltable[(uint64_t)skplist->header % LOCK_TABLE_ENTRIES].rx_lock);
 	curr = skplist->header;
 	//replace this with the hint level
 	lvl = calculate_level(skplist);
@@ -399,9 +396,9 @@ void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, uin
 				ret = memcmp(curr->forward_pointer[i]->kv->key, search_key, key_size);
 
 			if (ret < 0) {
-				RWLOCK_UNLOCK(&curr->rw_nodelock);
+				RWLOCK_UNLOCK(&skplist->ltable[(uint64_t)curr % LOCK_TABLE_ENTRIES].rx_lock);
 				curr = next_curr;
-				RWLOCK_RDLOCK(&curr->rw_nodelock);
+				RWLOCK_RDLOCK(&skplist->ltable[(uint64_t)curr % LOCK_TABLE_ENTRIES].rx_lock);
 				next_curr = curr->forward_pointer[i];
 			} else
 				break;
@@ -417,20 +414,22 @@ void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, uin
 	} else {
 		printf("Reached end of the skiplist, didn't found key");
 		iter->is_valid = 0;
-		RWLOCK_UNLOCK(&curr->rw_nodelock);
+		RWLOCK_UNLOCK(&skplist->ltable[(uint64_t)curr % LOCK_TABLE_ENTRIES].rx_lock);
 		return;
 	}
 
 	if (ret == 0) {
 		iter->is_valid = 1;
 		iter->iter_node = curr->forward_pointer[0];
+		iter->iter_skplist = skplist;
 		/*lock iter_node unlock curr (remember curr is always behind the correct node)*/
-		RWLOCK_RDLOCK(&iter->iter_node->rw_nodelock);
-		RWLOCK_UNLOCK(&curr->rw_nodelock);
+		RWLOCK_RDLOCK(&skplist->ltable[(uint64_t)iter->iter_node % LOCK_TABLE_ENTRIES].rx_lock);
+		RWLOCK_UNLOCK(&skplist->ltable[(uint64_t)curr % LOCK_TABLE_ENTRIES].rx_lock);
 	} else {
 		printf("search key for scan init not found\n");
 		iter->is_valid = 0;
-		RWLOCK_UNLOCK(&curr->rw_nodelock);
+		iter->iter_skplist = NULL;
+		RWLOCK_UNLOCK(&skplist->ltable[(uint64_t)curr % LOCK_TABLE_ENTRIES].rx_lock);
 	}
 }
 
@@ -439,20 +438,22 @@ void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, uin
 void iter_seek_to_first(struct skiplist_iterator *iter, struct skiplist *skplist)
 {
 	struct skiplist_node *curr, *next_curr;
-	RWLOCK_RDLOCK(&skplist->header->rw_nodelock);
+	RWLOCK_RDLOCK(&skplist->ltable[(uint64_t)skplist->header % LOCK_TABLE_ENTRIES].rx_lock);
 	curr = skplist->header;
 	next_curr = curr->forward_pointer[0];
 
 	if (!curr->forward_pointer[0]->is_NIL) {
 		iter->is_valid = 1;
 		iter->iter_node = curr->forward_pointer[0];
+		iter->iter_skplist = skplist;
 		/*lock iter_node unlock curr (remember curr is always behind the correct node) */
-		RWLOCK_RDLOCK(&iter->iter_node->rw_nodelock);
-		RWLOCK_UNLOCK(&curr->rw_nodelock);
+		RWLOCK_RDLOCK(&skplist->ltable[(uint64_t)iter->iter_node % LOCK_TABLE_ENTRIES].rx_lock);
+		RWLOCK_UNLOCK(&skplist->ltable[(uint64_t)curr % LOCK_TABLE_ENTRIES].rx_lock);
 	} else {
 		printf("Reached end of skiplist, didn't found key");
 		iter->is_valid = 0;
-		RWLOCK_UNLOCK(&curr->rw_nodelock);
+		iter->iter_skplist = NULL;
+		RWLOCK_UNLOCK(&skplist->ltable[(uint64_t)curr % LOCK_TABLE_ENTRIES].rx_lock);
 		return;
 	}
 }
@@ -467,9 +468,13 @@ void get_next(struct skiplist_iterator *iter)
 			return;
 		}
 		//next_node is valid
-		RWLOCK_UNLOCK(&iter->iter_node->rw_nodelock);
+		if (iter->iter_skplist == NULL) {
+			printf("%s\n", (char *)iter->iter_node->kv->key);
+			exit(EXIT_FAILURE);
+		}
+		RWLOCK_UNLOCK(&iter->iter_skplist->ltable[(uint64_t)iter->iter_node % LOCK_TABLE_ENTRIES].rx_lock);
 		iter->iter_node = next_node;
-		RWLOCK_RDLOCK(&iter->iter_node->rw_nodelock);
+		RWLOCK_RDLOCK(&iter->iter_skplist->ltable[(uint64_t)iter->iter_node % LOCK_TABLE_ENTRIES].rx_lock);
 	} else {
 		printf("iterator is invalid\n");
 		assert(0);
@@ -478,7 +483,7 @@ void get_next(struct skiplist_iterator *iter)
 
 void skplist_close_iterator(struct skiplist_iterator *iter)
 {
-	RWLOCK_UNLOCK(&iter->iter_node->rw_nodelock);
+	RWLOCK_UNLOCK(&iter->iter_skplist->ltable[(uint64_t)iter->iter_node % LOCK_TABLE_ENTRIES].rx_lock);
 	free(iter);
 }
 
