@@ -13,6 +13,7 @@
 #define MUTEX_INIT(L, attr) pthread_mutex_init(L, attr)
 #define MUTEX_LOCK(L) pthread_mutex_lock(L)
 #define MUTEX_UNLOCK(L) pthread_mutex_unlock(L)
+#define P 4
 
 pthread_mutex_t levels_lock_buf[SKPLIST_MAX_LEVELS];
 
@@ -28,8 +29,10 @@ static uint64_t skplist_hash(uint64_t x)
 uint32_t random_level()
 {
 	uint32_t i;
-	//SKPLIST_MAX_LEVELS - 1 cause we want a number from range [0,SKPLIST_MAX_LEVELS-1]
-	for (i = 0; i < SKPLIST_MAX_LEVELS - 1 && rand() % 4 == 0; i++)
+	/*SKPLIST_MAX_LEVELS - 1 cause we want a number from range [0,SKPLIST_MAX_LEVELS-1]
+	 * P is the possibility of a node being promoted to the next level
+	*/
+	for (i = 0; i < SKPLIST_MAX_LEVELS - 1 && rand() % P == 0; i++)
 		;
 
 	return i;
