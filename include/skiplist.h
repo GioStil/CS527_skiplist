@@ -28,19 +28,19 @@ struct lock_table {
 };
 
 struct node_data {
+	void *key;
+	void *value;
 	uint64_t kv_dev_offt; /* used for ptr to log */
 	uint32_t key_size;
-	void *key;
 	uint32_t value_size;
-	void *value;
 };
 
 struct skiplist_node {
 	struct skiplist_node *forward_pointer[SKPLIST_MAX_LEVELS];
-	uint32_t level;
 	struct node_data *kv;
-	uint8_t tombstone : 1;
+	uint32_t level;
 	uint8_t is_NIL;
+	uint8_t tombstone : 1;
 };
 
 struct skiplist_iterator {
@@ -50,17 +50,16 @@ struct skiplist_iterator {
 };
 
 struct skplist_insert_request {
+	void *key;
+	void *value;
 	uint64_t kv_dev_offt;
 	uint32_t key_size;
-	void *key;
 	uint32_t value_size;
-	void *value;
 	uint8_t tombstone : 1;
 };
 
 struct skiplist {
 	struct lock_table ltable[LOCK_TABLE_ENTRIES];
-	uint32_t level; //this variable will be used as the level hint
 	struct skiplist_node *header;
 	struct skiplist_node *NIL_element; //last element of the skip list
 	/* a generic key comparator, comparator should return:
@@ -71,6 +70,7 @@ struct skiplist {
 
 	/* generic node allocator */
 	struct skiplist_node *(*make_node)(struct skplist_insert_request *ins_req);
+	uint32_t level; //this variable will be used as the level hint
 };
 
 struct value_descriptor {
