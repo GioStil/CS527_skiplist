@@ -25,14 +25,14 @@ static uint64_t skplist_hash(uint64_t x)
 	return x;
 }
 
-//FIXME this should be static and removed from the test file
+/*FIXME this should be static and removed from the test file*/
 uint32_t random_level()
 {
 	uint32_t i;
 	/*SKPLIST_MAX_LEVELS - 1 cause we want a number from range [0,SKPLIST_MAX_LEVELS-1]
 	 * P is the possibility of a node being promoted to the next level
 	*/
-	for (i = 0; i < SKPLIST_MAX_LEVELS - 1 && rand() % P == 0; i++)
+	for (i = 0; i < SKPLIST_MAX_LEVELS - 1 && rand() % P == 0; ++i)
 		;
 
 	return i;
@@ -95,7 +95,7 @@ static struct skiplist_node *default_make_node(struct skplist_insert_request *in
 static uint32_t calculate_level(struct skiplist *skplist)
 {
 	uint32_t i, lvl = 0;
-	for (i = 0; i < SKPLIST_MAX_LEVELS; i++) {
+	for (i = 0; i < SKPLIST_MAX_LEVELS; ++i) {
 		if (skplist->header->forward_pointer[i] != skplist->NIL_element)
 			lvl = i;
 		else
@@ -105,12 +105,11 @@ static uint32_t calculate_level(struct skiplist *skplist)
 	return lvl;
 }
 
-// skplist is an object called by reference
 struct skiplist *init_skiplist(void)
 {
 	int i;
 	struct skiplist *skplist = (struct skiplist *)malloc(sizeof(struct skiplist));
-	// allocate NIL (sentinel)
+	/* allocate NIL (sentinel) */
 	skplist->NIL_element = (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
 	if (skplist->NIL_element == NULL) {
 		printf("Malloced failed\n");
@@ -120,10 +119,9 @@ struct skiplist *init_skiplist(void)
 	skplist->NIL_element->is_NIL = 1;
 	skplist->NIL_element->level = 0;
 
-	// level is 0
 	skplist->level = 0; //FIXME this will be the level hint
 
-	for (i = 0; i < LOCK_TABLE_ENTRIES; i++) {
+	for (i = 0; i < LOCK_TABLE_ENTRIES; ++i) {
 		if (RWLOCK_INIT(&skplist->ltable[i].rx_lock, NULL) != 0)
 			exit(EXIT_FAILURE);
 	}
@@ -137,8 +135,8 @@ struct skiplist *init_skiplist(void)
 	skplist->header->is_NIL = 0;
 	skplist->header->level = 0;
 
-	// all forward pointers of header point to NIL
-	for (i = 0; i < SKPLIST_MAX_LEVELS; i++)
+	/* all forward pointers of header point to NIL */
+	for (i = 0; i < SKPLIST_MAX_LEVELS; ++i)
 		skplist->header->forward_pointer[i] = skplist->NIL_element;
 
 	skplist->comparator = default_skiplist_comparator;
@@ -168,10 +166,10 @@ void search_skiplist(struct skiplist *skplist, struct skplist_search_request *se
 
 	RWLOCK_RDLOCK(&skplist->ltable[skplist_hash((uint64_t)skplist->header) % LOCK_TABLE_ENTRIES].rx_lock);
 	curr = skplist->header;
-	//replace this with the hint level
+	/*replace this with the hint level*/
 	lvl = calculate_level(skplist);
 
-	for (i = lvl; i >= 0; i--) {
+	for (i = lvl; i >= 0; --i) {
 		next_curr = curr->forward_pointer[i];
 		while (1) {
 			if (curr->forward_pointer[i]->is_NIL)
@@ -192,9 +190,10 @@ void search_skiplist(struct skiplist *skplist, struct skplist_search_request *se
 		}
 	}
 
-	//we are infront of the node at level 0, node is locked
-	//corner case
-	//next element for level 0 is sentinel, key not found
+	/*we are infront of the node at level 0, node is locked
+	 * corner case
+	 * next element for level 0 is sentinel, key not found
+	*/
 	if (!curr->forward_pointer[0]->is_NIL)
 		skplist->comparator(curr->forward_pointer[0], search_req, SKPLIST_KV_FORMAT, SKPLIST_KV_FORMAT);
 	else
@@ -216,17 +215,18 @@ void search_skiplist(struct skiplist *skplist, struct skplist_search_request *se
 static struct skiplist_node *getLock(struct skiplist *skplist, struct skiplist_node *curr,
 				     struct skplist_insert_request *ins_req, int lvl)
 {
-	//see if we can advance further due to parallel modifications
-	//first proceed with read locks, then acquire write locks
-	/*Weak serach will be implemented later(performance issues)*/
+	/* see if we can advance further due to parallel modifications
+	 * first proceed with read locks, then acquire write locks
+	 * Weak serach will be implemented later(performance issues)*/
 
 	int ret, node_key_size;
 	struct skiplist_node *next_curr;
 
-	if (lvl == 0) //if lvl is 0 we have locked the curr due to the search accross the levels
+	/*if lvl is 0 we have locked the curr due to the search acrross the levels*/
+	if (lvl == 0)
 		RWLOCK_UNLOCK(&skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
 
-	//acquire the write locks from now on
+	/*acquire the write locks from now on*/
 	RWLOCK_WRLOCK(&skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
 	next_curr = curr->forward_pointer[lvl];
 
@@ -256,10 +256,10 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 
 	RWLOCK_RDLOCK(&skplist->ltable[skplist_hash((uint64_t)skplist->header) % LOCK_TABLE_ENTRIES].rx_lock);
 	curr = skplist->header;
-	//we have the lock of the header, determine the lvl of the list
+	/*we have the lock of the header, determine the lvl of the list*/
 	lvl = calculate_level(skplist);
 	/*traverse the levels till 0 */
-	for (i = lvl; i >= 0; i--) {
+	for (i = lvl; i >= 0; --i) {
 		next_curr = curr->forward_pointer[i];
 		while (1) {
 			if (curr->forward_pointer[i]->is_NIL) {
@@ -280,56 +280,54 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 				break;
 			}
 		}
-		update_vector[i] = curr; //store the work done until now, this may NOT be the final nodes
-			//think that the concurrent inserts can update the list in the meanwhile
+		update_vector[i] = curr; /*store the work done until now, this may NOT be the final nodes
+								  * think that the concurrent inserts can update the list in the meanwhile*/
 	}
 
 	curr = getLock(skplist, curr, ins_req, 0);
-	//compare forward's key with the key
+	/*compare forward's key with the key*/
 	if (!curr->forward_pointer[0]->is_NIL)
 		ret = skplist->comparator(curr->forward_pointer[0], ins_req, SKPLIST_KV_FORMAT, SKPLIST_KV_FORMAT);
 	else
 		ret = 1;
 
-	//updates are done only with the curr node write locked, so we dont have race using the
-	//forward pointer
-	if (ret == 0) { //update logic
+	/* updates are done only with the curr node write locked, so we dont have race using the
+	 * forward pointer
+	*/
+	if (ret == 0) { /*update logic*/
 		curr->forward_pointer[0]->kv->value = strdup(ins_req->value); //FIXME change strdup
 		RWLOCK_UNLOCK(&skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
 		return;
-	} else { //insert logic
-		int new_node_lvl = random_level();
-		struct skiplist_node *new_node = skplist->make_node(ins_req);
-		new_node->level = new_node_lvl;
-		//MUTEX_LOCK(&levels_lock_buf[new_node->level]); //needed for concurrent deletes
+	}
+	/*insert logic*/
+	int new_node_lvl = random_level();
+	struct skiplist_node *new_node = skplist->make_node(ins_req);
+	new_node->level = new_node_lvl;
 
-		//we need to update the header correcly cause new_node_lvl > lvl
-		for (i = lvl + 1; i <= new_node_lvl; i++)
-			update_vector[i] = skplist->header;
+	/*we need to update the header correcly cause new_node_lvl > lvl*/
+	for (i = lvl + 1; i <= new_node_lvl; ++i)
+		update_vector[i] = skplist->header;
 
-		for (i = 0; i <= new_node->level; i++) {
-			//update_vector might be altered, find the correct rightmost node if it has changed
-			if (i != 0) {
-				curr = getLock(skplist, update_vector[i], ins_req,
-					       i); //we can change curr now cause level i-1 has
-			} //effectivly the new node and our job is done
-			//linking logic
-			new_node->forward_pointer[i] = curr->forward_pointer[i];
-			curr->forward_pointer[i] = new_node;
-			RWLOCK_UNLOCK(&skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
-		}
+	for (i = 0; i <= new_node->level; ++i) {
+		/*update_vector might be altered, find the correct rightmost node if it has changed*/
+		if (i != 0)
+			curr = getLock(
+				skplist, update_vector[i], ins_req,
+				i); /*we can change curr now cause level i-1 has effectivly the new node and its job is done*/
 
-		//MUTEX_UNLOCK(&levels_lock_buf[new_node->level]); //needed for concurrent deletes
+		/*linking logic*/
+		new_node->forward_pointer[i] = curr->forward_pointer[i];
+		curr->forward_pointer[i] = new_node;
+		RWLOCK_UNLOCK(&skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
 	}
 }
 
-//update_vector is an array of size SKPLIST_MAX_LEVELS
 static void delete_key(struct skiplist *skplist, struct skiplist_node **update_vector, struct skiplist_node *curr)
 {
 	int i;
-	for (i = 0; i <= skplist->level; i++) {
+	for (i = 0; i <= skplist->level; ++i) {
 		if (update_vector[i]->forward_pointer[i] != curr)
-			break; //modifications for upper levels don't apply (passed the level of the curr node)
+			break;
 
 		update_vector[i]->forward_pointer[i] = curr->forward_pointer[i];
 	}
@@ -349,7 +347,7 @@ void delete_skiplist(struct skiplist *skplist, char *key)
 
 	key_size = strlen(key);
 
-	for (i = skplist->level; i >= 0; i--) {
+	for (i = skplist->level; i >= 0; --i) {
 		while (1) {
 			if (curr->forward_pointer[i]->is_NIL == 1)
 				break; //reached sentinel
@@ -388,10 +386,10 @@ void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, uin
 	int node_key_size, ret;
 	RWLOCK_RDLOCK(&skplist->ltable[skplist_hash((uint64_t)skplist->header) % LOCK_TABLE_ENTRIES].rx_lock);
 	curr = skplist->header;
-	//replace this with the hint level
+	/*replace this with the hint level */
 	lvl = calculate_level(skplist);
 
-	for (i = lvl; i >= 0; i--) {
+	for (i = lvl; i >= 0; --i) {
 		next_curr = curr->forward_pointer[i];
 		while (1) {
 			if (curr->forward_pointer[i]->is_NIL) //reached sentinel for that level
@@ -414,9 +412,10 @@ void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, uin
 				break;
 		}
 	}
-	//we are infront of the node at level 0, node is locked
-	//corner case
-	//next element for level 0 is sentinel, key not found
+	/* we are infront of the node at level 0, node is locked
+	 * corner case
+	 * next element for level 0 is sentinel, key not found
+	*/
 	if (!curr->forward_pointer[0]->is_NIL) {
 		node_key_size = curr->forward_pointer[0]->kv->key_size;
 		key_size = key_size > node_key_size ? key_size : node_key_size;
@@ -511,6 +510,6 @@ void free_skiplist(struct skiplist *skplist)
 		free(curr);
 		curr = next_curr;
 	}
-	//free sentinel
+	/*free sentinel*/
 	free(curr);
 }
