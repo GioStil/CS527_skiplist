@@ -15,9 +15,9 @@ enum kv_category {
 	SKPLIST_SMALL_INLOG,
 	SKPLIST_MEDIUM_INPLACE,
 	SKPLIST_MEDIUM_INLOG,
+	SKPLIST_BIG_INPLACE,
 	SKPLIST_BIG_INLOG,
 	SKPLIST_UNKNOWN_LOG_CATEGORY,
-	SKPLIST_BIG_INPLACE
 };
 
 enum kv_type { SKPLIST_KV_FORMAT = 19, SKPLIST_KV_PREFIX = 20 };
@@ -55,6 +55,7 @@ struct skplist_insert_request {
 	uint64_t kv_dev_offt;
 	uint32_t key_size;
 	uint32_t value_size;
+	enum kv_category cat;
 	uint8_t tombstone : 1;
 };
 
