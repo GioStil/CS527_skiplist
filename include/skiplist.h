@@ -30,9 +30,9 @@ struct skplist_lock_table {
 struct node_data {
 	void *key;
 	void *value;
-	uint64_t kv_dev_offt; /* used for ptr to log */
 	uint32_t key_size;
 	uint32_t value_size;
+	enum kv_category cat;
 };
 
 struct skiplist_node {
@@ -51,7 +51,6 @@ struct skiplist_iterator {
 struct skplist_insert_request {
 	void *key;
 	void *value;
-	uint64_t kv_dev_offt;
 	uint32_t key_size;
 	uint32_t value_size;
 };
@@ -59,7 +58,6 @@ struct skplist_insert_request {
 struct skplist_search_request {
 	void *key;
 	void *value;
-	uint64_t kv_dev_offt;
 	uint32_t key_size;
 	uint32_t value_size;
 	uint8_t found;

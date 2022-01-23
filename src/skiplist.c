@@ -46,7 +46,7 @@ static int default_skiplist_comparator(void *key1, void *key2, char key1_format,
 	 *meaning the curr->forward[i] */
 	struct skiplist_node *curr_forward = (struct skiplist_node *)key1;
 	/*key2 is the insert/search request obj
-	 *insert and search requests have the same <key,value,kv_dev_offt,key_size,value_size> first fealds */
+	 *insert and search requests have the same <key,value,key_size,value_size> first fealds */
 	struct skplist_insert_request *req = (struct skplist_insert_request *)key2;
 	/*key1 and key2 formats are always KV_FORMAT*/
 
