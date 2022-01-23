@@ -85,7 +85,6 @@ static struct skiplist_node *default_make_node(struct skplist_insert_request *in
 	new_node->kv->value_size = ins_req->value_size;
 	memcpy(new_node->kv->key, ins_req->key, ins_req->key_size);
 	memcpy(new_node->kv->value, ins_req->value, ins_req->value_size);
-	new_node->tombstone = ins_req->tombstone;
 	new_node->is_NIL = 0;
 
 	return new_node;

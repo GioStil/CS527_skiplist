@@ -40,7 +40,6 @@ struct skiplist_node {
 	struct node_data *kv;
 	uint32_t level;
 	uint8_t is_NIL;
-	uint8_t tombstone : 1;
 };
 
 struct skiplist_iterator {
@@ -55,8 +54,6 @@ struct skplist_insert_request {
 	uint64_t kv_dev_offt;
 	uint32_t key_size;
 	uint32_t value_size;
-	enum kv_category cat;
-	uint8_t tombstone : 1;
 };
 
 struct skplist_search_request {

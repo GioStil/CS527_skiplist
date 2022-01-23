@@ -8,7 +8,7 @@
 #include <string.h>
 #include <time.h>
 
-#define KVS_NUM 2000000
+#define KVS_NUM 5000000
 #define KV_PREFIX "ts"
 #define NUM_OF_THREADS 7
 
@@ -51,7 +51,6 @@ static void *populate_the_skiplist(void *args)
 		ins_req.key = key;
 		ins_req.value_size = key_size;
 		ins_req.value = key;
-		ins_req.tombstone = 0;
 		insert_skiplist(my_skiplist, &ins_req);
 	}
 	pthread_exit(NULL);
