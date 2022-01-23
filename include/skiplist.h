@@ -22,7 +22,7 @@ enum kv_category {
 
 enum kv_type { SKPLIST_KV_FORMAT = 19, SKPLIST_KV_PREFIX = 20 };
 
-struct lock_table {
+struct skplist_lock_table {
 	pthread_rwlock_t rx_lock;
 	char pad[8];
 };
@@ -68,7 +68,7 @@ struct skplist_search_request {
 };
 
 struct skiplist {
-	struct lock_table ltable[LOCK_TABLE_ENTRIES];
+	struct skplist_lock_table ltable[LOCK_TABLE_ENTRIES];
 	struct skiplist_node *header;
 	struct skiplist_node *NIL_element; //last element of the skip list
 	/* a generic key comparator, comparator should return:
