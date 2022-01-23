@@ -45,23 +45,24 @@ static int default_skiplist_comparator(void *key1, void *key2, char key1_format,
 	/*key1 is the curr node being examinated
 	 *meaning the curr->forward[i] */
 	struct skiplist_node *curr_forward = (struct skiplist_node *)key1;
-	/*key2 is the insert request obj*/
-	struct skplist_insert_request *ins_req = (struct skplist_insert_request *)key2;
+	/*key2 is the insert/search request obj
+	 *insert and search requests have the same <key,value,kv_dev_offt,key_size,value_size> first fealds */
+	struct skplist_insert_request *req = (struct skplist_insert_request *)key2;
 	/*key1 and key2 formats are always KV_FORMAT*/
 
 	node_key_size = curr_forward->kv->key_size;
-	if (node_key_size > ins_req->key_size)
-		node_key_size = ins_req->key_size;
+	if (node_key_size > req->key_size)
+		node_key_size = req->key_size;
 
-	ret = memcmp(curr_forward->kv->key, ins_req->key, node_key_size);
+	ret = memcmp(curr_forward->kv->key, req->key, node_key_size);
 	if (ret != 0) {
 		return ret;
 	}
 
 	/*if ret == 0 but sizes are not equal, larger key wins*/
-	if (curr_forward->kv->key_size > ins_req->key_size)
+	if (curr_forward->kv->key_size > req->key_size)
 		return 1;
-	if (curr_forward->kv->key_size < ins_req->key_size)
+	if (curr_forward->kv->key_size < req->key_size)
 		return -1;
 	/*keys are equal*/
 	return 0;
@@ -159,11 +160,10 @@ void change_node_allocator_of_skiplist(struct skiplist *skplist,
 	skplist->make_node = make_node;
 }
 
-struct value_descriptor search_skiplist(struct skiplist *skplist, uint32_t key_size, void *search_key)
+void search_skiplist(struct skiplist *skplist, struct skplist_search_request *search_req)
 {
 	int i, ret;
 	uint32_t node_key_size, lvl;
-	struct value_descriptor ret_val;
 	struct skiplist_node *curr, *next_curr;
 
 	RWLOCK_RDLOCK(&skplist->ltable[skplist_hash((uint64_t)skplist->header) % LOCK_TABLE_ENTRIES].rx_lock);
@@ -177,11 +177,8 @@ struct value_descriptor search_skiplist(struct skiplist *skplist, uint32_t key_s
 			if (curr->forward_pointer[i]->is_NIL)
 				break;
 
-			node_key_size = curr->forward_pointer[i]->kv->key_size;
-			if (node_key_size > key_size)
-				ret = memcmp(curr->forward_pointer[i]->kv->key, search_key, node_key_size);
-			else
-				ret = memcmp(curr->forward_pointer[i]->kv->key, search_key, key_size);
+			ret = skplist->comparator(curr->forward_pointer[i], search_req, SKPLIST_KV_FORMAT,
+						  SKPLIST_KV_FORMAT);
 
 			if (ret < 0) {
 				RWLOCK_UNLOCK(
@@ -198,25 +195,20 @@ struct value_descriptor search_skiplist(struct skiplist *skplist, uint32_t key_s
 	//we are infront of the node at level 0, node is locked
 	//corner case
 	//next element for level 0 is sentinel, key not found
-	if (!curr->forward_pointer[0]->is_NIL) {
-		node_key_size = curr->forward_pointer[0]->kv->key_size;
-		key_size = key_size > node_key_size ? key_size : node_key_size;
-		ret = memcmp(curr->forward_pointer[0]->kv->key, search_key, key_size);
-	} else {
+	if (!curr->forward_pointer[0]->is_NIL)
+		skplist->comparator(curr->forward_pointer[0], search_req, SKPLIST_KV_FORMAT, SKPLIST_KV_FORMAT);
+	else
 		ret = 1;
-	}
 
 	if (ret == 0) {
-		ret_val.value_size = curr->forward_pointer[0]->kv->value_size;
-		ret_val.value = malloc(ret_val.value_size);
-		memcpy(ret_val.value, curr->forward_pointer[0]->kv->value, ret_val.value_size);
-		ret_val.found = 1;
+		search_req->value_size = curr->forward_pointer[0]->kv->value_size;
+		search_req->value = malloc(search_req->value_size);
+		memcpy(search_req->value, curr->forward_pointer[0]->kv->value, search_req->value_size);
+		search_req->found = 1;
 		RWLOCK_UNLOCK(&skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
-		return ret_val;
 	} else {
-		ret_val.found = 0;
+		search_req->found = 0;
 		RWLOCK_UNLOCK(&skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
-		return ret_val;
 	}
 }
 

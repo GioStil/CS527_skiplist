@@ -58,6 +58,15 @@ struct skplist_insert_request {
 	uint8_t tombstone : 1;
 };
 
+struct skplist_search_request {
+	void *key;
+	void *value;
+	uint64_t kv_dev_offt;
+	uint32_t key_size;
+	uint32_t value_size;
+	uint8_t found;
+};
+
 struct skiplist {
 	struct lock_table ltable[LOCK_TABLE_ENTRIES];
 	struct skiplist_node *header;
@@ -73,12 +82,6 @@ struct skiplist {
 	uint32_t level; //this variable will be used as the level hint
 };
 
-struct value_descriptor {
-	void *value;
-	uint32_t value_size;
-	uint8_t found;
-};
-
 struct skiplist *init_skiplist(void);
 void change_comparator_of_skiplist(struct skiplist *skplist,
 				   int (*comparator)(void *key1, void *key2, char key1_format, char key2_format));
@@ -86,7 +89,7 @@ void change_comparator_of_skiplist(struct skiplist *skplist,
 void change_node_allocator_of_skiplist(struct skiplist *skplist,
 				       struct skiplist_node *make_node(struct skplist_insert_request *ins_req));
 /*skiplist operations*/
-struct value_descriptor search_skiplist(struct skiplist *skplist, uint32_t key_size, void *search_key);
+void search_skiplist(struct skiplist *skplist, struct skplist_search_request *search_req);
 void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *ins_req);
 void delete_skiplist(struct skiplist *skplist, char *key); //TBI
 void free_skiplist(struct skiplist *skplist);

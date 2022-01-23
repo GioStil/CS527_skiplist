@@ -93,7 +93,7 @@ static void *search_the_skiplist(void *args)
 	int i, from, to;
 	char *key = malloc(strlen(KV_PREFIX) + sizeof(long long unsigned));
 	int *tid = (int *)args;
-	struct value_descriptor ret_val;
+	struct skplist_search_request search_req;
 	uint32_t key_size;
 
 	from = (int)(((*tid) / (double)NUM_OF_THREADS) * KVS_NUM);
@@ -103,9 +103,12 @@ static void *search_the_skiplist(void *args)
 		memcpy(key, KV_PREFIX, strlen(KV_PREFIX));
 		sprintf(key + strlen(KV_PREFIX), "%llu", (unsigned long long)i);
 		key_size = strlen(key);
-		ret_val = search_skiplist(my_skiplist, key_size, key);
-		assert(ret_val.found == 1);
-		assert(memcmp(ret_val.value, key, ret_val.value_size) == 0); //keys and value are same in this test
+		search_req.key_size = key_size;
+		search_req.key = key;
+		search_skiplist(my_skiplist, &search_req);
+		assert(search_req.found == 1);
+		assert(memcmp(search_req.value, key, search_req.value_size) ==
+		       0); //keys and value are same in this test
 	}
 	pthread_exit(NULL);
 }
