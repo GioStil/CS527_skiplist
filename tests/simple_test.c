@@ -109,6 +109,14 @@ static void *search_the_skiplist(void *args)
 		/* values are the same as keys in this test*/
 		assert(memcmp(search_req.value, key, search_req.value_size) == 0);
 	}
+	/*search for a key that doesnt exist*/
+	memcpy(key, "asddf", 6);
+	key_size = 6;
+	search_req.key_size = key_size;
+	search_req.key = key;
+	search_skiplist(my_skiplist, &search_req);
+	assert(search_req.found == 0);
+
 	pthread_exit(NULL);
 }
 

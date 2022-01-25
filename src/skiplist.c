@@ -97,6 +97,16 @@ static void default_store_value(struct skiplist_node *node, struct skplist_inser
 	node->kv->value_size = ins_req->value_size;
 }
 
+static void default_retrieve_value(struct skiplist_node *node, struct skplist_search_request *search_req)
+{
+	assert(node != NULL);
+	/*values are inplace by default*/
+	search_req->value = malloc(node->kv->value_size);
+	memcpy(search_req->value, node->kv->value, node->kv->value_size);
+	search_req->value_size = node->kv->value_size;
+	search_req->found = 1;
+}
+
 /*returns the biggest non-null level*/
 static uint32_t calculate_level(struct skiplist *skplist)
 {
@@ -148,7 +158,7 @@ struct skiplist *init_skiplist(void)
 	skplist->comparator = default_skiplist_comparator;
 	skplist->make_node = default_make_node;
 	skplist->store_value = default_store_value;
-
+	skplist->retrieve_value = default_retrieve_value;
 	return skplist;
 }
 
@@ -171,6 +181,13 @@ void change_store_value(struct skiplist *skplist,
 {
 	assert(skplist != NULL);
 	skplist->store_value = store_value;
+}
+
+void change_retrieve_value(struct skiplist *skplist, void (*retrieve_value)(struct skiplist_node *node,
+									    struct skplist_search_request *search_req))
+{
+	assert(skplist != NULL);
+	skplist->retrieve_value = retrieve_value;
 }
 
 void search_skiplist(struct skiplist *skplist, struct skplist_search_request *search_req)
@@ -214,10 +231,7 @@ void search_skiplist(struct skiplist *skplist, struct skplist_search_request *se
 		ret = 1;
 
 	if (ret == 0) {
-		search_req->value_size = curr->forward_pointer[0]->kv->value_size;
-		search_req->value = malloc(search_req->value_size);
-		memcpy(search_req->value, curr->forward_pointer[0]->kv->value, search_req->value_size);
-		search_req->found = 1;
+		skplist->retrieve_value(curr->forward_pointer[0], search_req);
 		RWLOCK_UNLOCK(&skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
 	} else {
 		search_req->found = 0;

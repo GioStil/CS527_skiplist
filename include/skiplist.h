@@ -64,6 +64,10 @@ struct skiplist {
 	 */
 	void (*store_value)(struct skiplist_node *node, struct skplist_insert_request *ins_req);
 
+	/* if a user have modified the store_value functionality, the retrieval functionality
+	 * have to be accordinlgy changed if needed*/
+	void (*retrieve_value)(struct skiplist_node *node, struct skplist_search_request *search_req);
+
 	uint32_t level; //this variable will be used as the level hint
 };
 
@@ -75,6 +79,9 @@ void change_node_allocator_of_skiplist(struct skiplist *skplist,
 								       struct skplist_insert_request *ins_req));
 void change_store_value(struct skiplist *skplist,
 			void (*store_value)(struct skiplist_node *node, struct skplist_insert_request *ins_req));
+
+void change_retrieve_value(struct skiplist *skplist, void (*retrieve_value)(struct skiplist_node *node,
+									    struct skplist_search_request *search_req));
 
 /*skiplist operations*/
 void search_skiplist(struct skiplist *skplist, struct skplist_search_request *search_req);
