@@ -6,22 +6,6 @@
 #include <stdint.h>
 #define LOCK_TABLE_ENTRIES 2048
 
-/* kv_category has the same format as Parallax
- * users can define the category of their keys
- * IMPORTANT: the *_INLOG choices should not be used for in-memory staff!
-*/
-enum kv_category {
-	SKPLIST_SMALL_INPLACE = 0,
-	SKPLIST_SMALL_INLOG,
-	SKPLIST_MEDIUM_INPLACE,
-	SKPLIST_MEDIUM_INLOG,
-	SKPLIST_BIG_INPLACE,
-	SKPLIST_BIG_INLOG,
-	SKPLIST_UNKNOWN_LOG_CATEGORY,
-};
-
-enum kv_type { SKPLIST_KV_FORMAT = 19, SKPLIST_KV_PREFIX = 20 };
-
 struct skplist_lock_table {
 	pthread_rwlock_t rx_lock;
 	char pad[8];
@@ -32,7 +16,6 @@ struct node_data {
 	void *value;
 	uint32_t key_size;
 	uint32_t value_size;
-	enum kv_category cat;
 };
 
 struct skiplist_node {
@@ -71,7 +54,7 @@ struct skiplist {
 	 * > 0 if key1 > key2
 	 * < 0 key2 > key1
 	 * 0 if key1 == key2 */
-	int (*comparator)(void *key1, void *key2, char key1_format, char key2_format);
+	int (*comparator)(void *key1, void *key2);
 
 	/* generic node allocator */
 	struct skiplist_node *(*make_node)(struct skplist_insert_request *ins_req);
@@ -79,8 +62,7 @@ struct skiplist {
 };
 
 struct skiplist *init_skiplist(void);
-void change_comparator_of_skiplist(struct skiplist *skplist,
-				   int (*comparator)(void *key1, void *key2, char key1_format, char key2_format));
+void change_comparator_of_skiplist(struct skiplist *skplist, int (*comparator)(void *key1, void *key2));
 
 void change_node_allocator_of_skiplist(struct skiplist *skplist,
 				       struct skiplist_node *make_node(struct skplist_insert_request *ins_req));

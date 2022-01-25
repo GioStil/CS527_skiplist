@@ -38,7 +38,7 @@ uint32_t random_level()
 	return i;
 }
 
-static int default_skiplist_comparator(void *key1, void *key2, char key1_format, char key2_format)
+static int default_skiplist_comparator(void *key1, void *key2)
 {
 	uint64_t node_key_size;
 	int ret;
@@ -144,7 +144,7 @@ struct skiplist *init_skiplist(void)
 	return skplist;
 }
 
-void change_comparator_of_skiplist(struct skiplist *skplist, int (*comparator)(void *, void *, char, char))
+void change_comparator_of_skiplist(struct skiplist *skplist, int (*comparator)(void *, void *))
 {
 	assert(skplist != NULL);
 	skplist->comparator = comparator;
@@ -174,8 +174,7 @@ void search_skiplist(struct skiplist *skplist, struct skplist_search_request *se
 			if (curr->forward_pointer[i]->is_NIL)
 				break;
 
-			ret = skplist->comparator(curr->forward_pointer[i], search_req, SKPLIST_KV_FORMAT,
-						  SKPLIST_KV_FORMAT);
+			ret = skplist->comparator(curr->forward_pointer[i], search_req);
 
 			if (ret < 0) {
 				RWLOCK_UNLOCK(
@@ -194,7 +193,7 @@ void search_skiplist(struct skiplist *skplist, struct skplist_search_request *se
 	 * next element for level 0 is sentinel, key not found
 	*/
 	if (!curr->forward_pointer[0]->is_NIL)
-		skplist->comparator(curr->forward_pointer[0], search_req, SKPLIST_KV_FORMAT, SKPLIST_KV_FORMAT);
+		skplist->comparator(curr->forward_pointer[0], search_req);
 	else
 		ret = 1;
 
@@ -233,7 +232,7 @@ static struct skiplist_node *getLock(struct skiplist *skplist, struct skiplist_n
 		if (curr->forward_pointer[lvl]->is_NIL)
 			break;
 
-		ret = skplist->comparator(curr->forward_pointer[lvl], ins_req, SKPLIST_KV_FORMAT, SKPLIST_KV_FORMAT);
+		ret = skplist->comparator(curr->forward_pointer[lvl], ins_req);
 
 		if (ret < 0) {
 			RWLOCK_UNLOCK(&skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
@@ -265,8 +264,7 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 				break;
 			}
 
-			ret = skplist->comparator(curr->forward_pointer[i], ins_req, SKPLIST_KV_FORMAT,
-						  SKPLIST_KV_FORMAT);
+			ret = skplist->comparator(curr->forward_pointer[i], ins_req);
 
 			if (ret < 0) {
 				RWLOCK_UNLOCK(
@@ -286,7 +284,7 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 	curr = getLock(skplist, curr, ins_req, 0);
 	/*compare forward's key with the key*/
 	if (!curr->forward_pointer[0]->is_NIL)
-		ret = skplist->comparator(curr->forward_pointer[0], ins_req, SKPLIST_KV_FORMAT, SKPLIST_KV_FORMAT);
+		ret = skplist->comparator(curr->forward_pointer[0], ins_req);
 	else
 		ret = 1;
 
