@@ -94,9 +94,9 @@ void iter_seek_to_first(struct skiplist_iterator *iter, struct skiplist *skplist
 void get_next(struct skiplist_iterator *iter);
 /*return 1 if valid 0 if not valid*/
 uint8_t is_valid(struct skiplist_iterator *iter);
-void *get_key(struct skiplist_iterator *iter);
-uint32_t get_key_size(struct skiplist_iterator *iter);
-void *get_value(struct skiplist_iterator *iter);
-uint32_t get_value_size(struct skiplist_iterator *iter);
+void *skplist_iter_get_key(struct skiplist_iterator *iter);
+uint32_t skplist_iter_get_key_size(struct skiplist_iterator *iter);
+void *skplist_iter_get_value(struct skiplist_iterator *iter);
+uint32_t skplist_iter_get_value_size(struct skiplist_iterator *iter);
 void skplist_close_iterator(struct skiplist_iterator *iter);
 #endif // SKIPLIST_H_
