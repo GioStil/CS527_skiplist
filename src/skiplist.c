@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <skiplist.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -525,6 +526,28 @@ void skplist_close_iterator(struct skiplist_iterator *iter)
 uint8_t is_valid(struct skiplist_iterator *iter)
 {
 	return iter->is_valid;
+}
+
+uint32_t get_key_size(struct skiplist_iterator *iter)
+{
+	return iter->iter_node->kv->key_size;
+}
+
+void *get_key(struct skiplist_iterator *iter)
+{
+	return iter->iter_node->kv->key;
+}
+
+uint32_t get_value_size(struct skiplist_iterator *iter)
+{
+	return iter->iter_node->kv->value_size;
+}
+
+void *get_value(struct skiplist_iterator *iter)
+{
+	struct skplist_search_request search_req;
+	iter->iter_skplist->retrieve_value(iter->iter_node, &search_req);
+	return search_req.value;
 }
 
 void free_skiplist(struct skiplist *skplist)
