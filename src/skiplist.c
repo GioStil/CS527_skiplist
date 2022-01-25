@@ -68,7 +68,7 @@ static int default_skiplist_comparator(void *key1, void *key2)
 	return 0;
 }
 
-static struct skiplist_node *default_make_node(struct skplist_insert_request *ins_req)
+static struct skiplist_node *default_make_node(struct skiplist *skplist, struct skplist_insert_request *ins_req)
 {
 	struct skiplist_node *new_node = (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
 	new_node->kv = (struct node_data *)malloc(sizeof(struct node_data));
@@ -80,14 +80,21 @@ static struct skiplist_node *default_make_node(struct skplist_insert_request *in
 
 	/*create a node with the in-place kv*/
 	new_node->kv->key = malloc(ins_req->key_size);
-	new_node->kv->value = malloc(ins_req->value_size);
 	new_node->kv->key_size = ins_req->key_size;
-	new_node->kv->value_size = ins_req->value_size;
 	memcpy(new_node->kv->key, ins_req->key, ins_req->key_size);
-	memcpy(new_node->kv->value, ins_req->value, ins_req->value_size);
+	skplist->store_value(new_node, ins_req);
 	new_node->is_NIL = 0;
 
 	return new_node;
+}
+
+static void default_store_value(struct skiplist_node *node, struct skplist_insert_request *ins_req)
+{
+	assert(node != NULL);
+	/*place the value in place*/
+	node->kv->value = malloc(ins_req->value_size);
+	memcpy(node->kv->value, ins_req->value, ins_req->value_size);
+	node->kv->value_size = ins_req->value_size;
 }
 
 /*returns the biggest non-null level*/
@@ -140,6 +147,7 @@ struct skiplist *init_skiplist(void)
 
 	skplist->comparator = default_skiplist_comparator;
 	skplist->make_node = default_make_node;
+	skplist->store_value = default_store_value;
 
 	return skplist;
 }
@@ -151,10 +159,18 @@ void change_comparator_of_skiplist(struct skiplist *skplist, int (*comparator)(v
 }
 
 void change_node_allocator_of_skiplist(struct skiplist *skplist,
-				       struct skiplist_node *make_node(struct skplist_insert_request *ins_req))
+				       struct skiplist_node *make_node(struct skiplist *skplist,
+								       struct skplist_insert_request *ins_req))
 {
 	assert(skplist != NULL);
 	skplist->make_node = make_node;
+}
+
+void change_store_value(struct skiplist *skplist,
+			void (*store_value)(struct skiplist_node *node, struct skplist_insert_request *ins_req))
+{
+	assert(skplist != NULL);
+	skplist->store_value = store_value;
 }
 
 void search_skiplist(struct skiplist *skplist, struct skplist_search_request *search_req)
@@ -298,7 +314,7 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 	}
 	/*insert logic*/
 	int new_node_lvl = random_level();
-	struct skiplist_node *new_node = skplist->make_node(ins_req);
+	struct skiplist_node *new_node = skplist->make_node(skplist, ins_req);
 	new_node->level = new_node_lvl;
 
 	/*we need to update the header correcly cause new_node_lvl > lvl*/
