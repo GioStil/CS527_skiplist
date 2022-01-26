@@ -40,6 +40,7 @@ static void *populate_the_skiplist(void *args)
 	int *tid = (int *)args;
 	uint32_t key_size;
 	struct skplist_insert_request ins_req;
+	ins_req.skplist = my_skiplist;
 	from = (int)(((*tid) / (double)NUM_OF_THREADS) * KVS_NUM);
 	to = (int)(((*tid + 1) / (double)NUM_OF_THREADS) * KVS_NUM);
 	printf("inserting from %d to %d\n", from, to);
