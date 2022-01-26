@@ -37,6 +37,7 @@ struct skplist_insert_request {
 	uint32_t key_size;
 	uint32_t value_size;
 	struct skiplist *skplist;
+	uint8_t is_update;
 };
 
 struct skplist_search_request {

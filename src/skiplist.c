@@ -72,10 +72,13 @@ static int default_skiplist_comparator(void *key1, void *key2)
 static void default_fill_node(struct skiplist_node *node, struct skplist_insert_request *ins_req)
 {
 	assert(node != NULL);
-	/*fill the node with the in-place kv*/
-	node->kv->key = malloc(ins_req->key_size);
-	node->kv->key_size = ins_req->key_size;
-	memcpy(node->kv->key, ins_req->key, ins_req->key_size);
+	/*fill the node with the kv inplace*/
+	if(!ins_req->is_update){
+		/*operation is insert, fill key accordingly*/
+		node->kv->key = malloc(ins_req->key_size);
+		node->kv->key_size = ins_req->key_size;
+		memcpy(node->kv->key, ins_req->key, ins_req->key_size);
+	}
 
 	node->kv->value = malloc(ins_req->value_size);
 	memcpy(node->kv->value, ins_req->value, ins_req->value_size);
@@ -328,11 +331,13 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 	 * forward pointer
 	*/
 	if (ret == 0) { /*update logic*/
-		curr->forward_pointer[0]->kv->value = strdup(ins_req->value); //FIXME change strdup
+		ins_req->is_update = 1;
+		skplist->fill_node(curr->forward_pointer[0], ins_req);
 		RWLOCK_UNLOCK(&skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
 		return;
 	}
 	/*insert logic*/
+	ins_req->is_update = 0;
 	int new_node_lvl = random_level();
 	struct skiplist_node *new_node = allocate_new_node();
 
