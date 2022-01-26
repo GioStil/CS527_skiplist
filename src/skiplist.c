@@ -69,33 +69,19 @@ static int default_skiplist_comparator(void *key1, void *key2)
 	return 0;
 }
 
-static struct skiplist_node *default_make_node(struct skiplist *skplist, struct skplist_insert_request *ins_req)
-{
-	struct skiplist_node *new_node = (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
-	new_node->kv = (struct node_data *)malloc(sizeof(struct node_data));
-	if (new_node == NULL || new_node->kv == NULL) {
-		printf("Malloc failed to allocate a node\n");
-		assert(0);
-		exit(EXIT_FAILURE);
-	}
-
-	/*create a node with the in-place kv*/
-	new_node->kv->key = malloc(ins_req->key_size);
-	new_node->kv->key_size = ins_req->key_size;
-	memcpy(new_node->kv->key, ins_req->key, ins_req->key_size);
-	skplist->store_value(new_node, ins_req);
-	new_node->is_NIL = 0;
-
-	return new_node;
-}
-
-static void default_store_value(struct skiplist_node *node, struct skplist_insert_request *ins_req)
+static void default_fill_node(struct skiplist_node *node, struct skplist_insert_request *ins_req)
 {
 	assert(node != NULL);
-	/*place the value in place*/
+	/*fill the node with the in-place kv*/
+	node->kv->key = malloc(ins_req->key_size);
+	node->kv->key_size = ins_req->key_size;
+	memcpy(node->kv->key, ins_req->key, ins_req->key_size);
+
 	node->kv->value = malloc(ins_req->value_size);
 	memcpy(node->kv->value, ins_req->value, ins_req->value_size);
 	node->kv->value_size = ins_req->value_size;
+
+	node->is_NIL = 0;
 }
 
 static void default_retrieve_value(struct skiplist_node *node, struct skplist_search_request *search_req)
@@ -106,14 +92,6 @@ static void default_retrieve_value(struct skiplist_node *node, struct skplist_se
 	memcpy(search_req->value, node->kv->value, node->kv->value_size);
 	search_req->value_size = node->kv->value_size;
 	search_req->found = 1;
-}
-
-/*by default this function is set to null
- *it's the users responsibility to alter this
-*/
-static uint64_t default_store_kv_to_log(void *insert_req)
-{
-	return 0;
 }
 
 /*returns the biggest non-null level*/
@@ -165,10 +143,8 @@ struct skiplist *init_skiplist(void)
 		skplist->header->forward_pointer[i] = skplist->NIL_element;
 
 	skplist->comparator = default_skiplist_comparator;
-	skplist->make_node = default_make_node;
-	skplist->store_value = default_store_value;
+	skplist->fill_node = default_fill_node;
 	skplist->retrieve_value = default_retrieve_value;
-	skplist->store_kv_to_log = default_store_kv_to_log;
 	return skplist;
 }
 
@@ -178,19 +154,11 @@ void change_comparator_of_skiplist(struct skiplist *skplist, int (*comparator)(v
 	skplist->comparator = comparator;
 }
 
-void change_node_allocator_of_skiplist(struct skiplist *skplist,
-				       struct skiplist_node *make_node(struct skiplist *skplist,
-								       struct skplist_insert_request *ins_req))
+void change_fill_node_of_skiplist(struct skiplist *skplist,
+				  void fill_node(struct skiplist_node *node, struct skplist_insert_request *ins_req))
 {
 	assert(skplist != NULL);
-	skplist->make_node = make_node;
-}
-
-void change_store_value(struct skiplist *skplist,
-			void (*store_value)(struct skiplist_node *node, struct skplist_insert_request *ins_req))
-{
-	assert(skplist != NULL);
-	skplist->store_value = store_value;
+	skplist->fill_node = fill_node;
 }
 
 void change_retrieve_value(struct skiplist *skplist, void (*retrieve_value)(struct skiplist_node *node,
@@ -198,12 +166,6 @@ void change_retrieve_value(struct skiplist *skplist, void (*retrieve_value)(stru
 {
 	assert(skplist != NULL);
 	skplist->retrieve_value = retrieve_value;
-}
-
-void change_store_kv_to_log(struct skiplist *skplist, uint64_t (*store_kv_to_log)(void *ins_req))
-{
-	assert(skplist != NULL);
-	skplist->store_kv_to_log = store_kv_to_log;
 }
 
 void search_skiplist(struct skiplist *skplist, struct skplist_search_request *search_req)
@@ -253,6 +215,19 @@ void search_skiplist(struct skiplist *skplist, struct skplist_search_request *se
 		search_req->found = 0;
 		RWLOCK_UNLOCK(&skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
 	}
+}
+
+static struct skiplist_node *allocate_new_node(void)
+{
+	struct skiplist_node *new_node = (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
+	new_node->kv = (struct node_data *)malloc(sizeof(struct node_data));
+	if (new_node == NULL || new_node->kv == NULL) {
+		printf("Malloc failed to allocate a node\n");
+		assert(0);
+		exit(EXIT_FAILURE);
+	}
+
+	return new_node;
 }
 
 /*(write)lock the node in front of node *key* at level lvl*/
@@ -329,10 +304,6 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 	}
 
 	curr = getLock(skplist, curr, ins_req, 0);
-	/*kv_seperation logic*/
-	kv_dev_offt = skplist->store_kv_to_log(skplist->store_kv_to_log_param);
-	if (kv_dev_offt != 0)
-		ins_req->value = &kv_dev_offt;
 
 	/*compare forward's key with the key*/
 	if (!curr->forward_pointer[0]->is_NIL)
@@ -350,7 +321,9 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 	}
 	/*insert logic*/
 	int new_node_lvl = random_level();
-	struct skiplist_node *new_node = skplist->make_node(skplist, ins_req);
+	struct skiplist_node *new_node = allocate_new_node();
+
+	skplist->fill_node(new_node, ins_req);
 	new_node->level = new_node_lvl;
 
 	/*we need to update the header correcly cause new_node_lvl > lvl*/

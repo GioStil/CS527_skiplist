@@ -56,38 +56,25 @@ struct skiplist {
 	 * 0 if key1 == key2 */
 	int (*comparator)(void *key1, void *key2);
 
-	/* generic node allocator */
-	struct skiplist_node *(*make_node)(struct skiplist *skplist, struct skplist_insert_request *ins_req);
-	/* This functions stores the value to its corresponding node.
-	 * users may want to store metadata along with the value
-	 * and they can achieve this by specifying their own function implementation
+	/* generic fill node functionality
+	 * users can fill the node with more than just the KV if needed
 	 */
-	void (*store_value)(struct skiplist_node *node, struct skplist_insert_request *ins_req);
+	void (*fill_node)(struct skiplist_node *node, struct skplist_insert_request *ins_req);
 
-	/* if a user have modified the store_value functionality, the retrieval functionality
-	 * have to be accordinlgy changed if needed*/
+	/* generic retrieval functionality for the skplist*/
 	void (*retrieve_value)(struct skiplist_node *node, struct skplist_search_request *search_req);
 
-	/*generic function for inserting the kv at a log
-	 *this function in set to null by default */
-	uint64_t (*store_kv_to_log)(void *ins_req);
-	void *store_kv_to_log_param;
 	uint32_t level; //this variable will be used as the level hint
 };
 
 struct skiplist *init_skiplist(void);
 void change_comparator_of_skiplist(struct skiplist *skplist, int (*comparator)(void *key1, void *key2));
 
-void change_node_allocator_of_skiplist(struct skiplist *skplist,
-				       struct skiplist_node *make_node(struct skiplist *skplist,
-								       struct skplist_insert_request *ins_req));
-void change_store_value(struct skiplist *skplist,
-			void (*store_value)(struct skiplist_node *node, struct skplist_insert_request *ins_req));
+void change_fill_node_of_skiplist(struct skiplist *skplist,
+				  void fill_node(struct skiplist_node *node, struct skplist_insert_request *ins_req));
 
 void change_retrieve_value(struct skiplist *skplist, void (*retrieve_value)(struct skiplist_node *node,
 									    struct skplist_search_request *search_req));
-
-void change_store_kv_to_log(struct skiplist *skplist, uint64_t (*store_kv_to_log)(void *));
 /*skiplist operations*/
 void search_skiplist(struct skiplist *skplist, struct skplist_search_request *search_req);
 void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *ins_req);
