@@ -47,7 +47,7 @@ static void populate_skiplist_with_single_writer(struct skiplist *skplist)
 		ins_req.key = key;
 		ins_req.value = key;
 		ins_req.value_size = key_size;
-		insert_skiplist(skplist, &ins_req);
+		insert_skiplist(&ins_req);
 	}
 }
 
@@ -70,7 +70,7 @@ static void *populate_the_skiplist(void *args)
 		ins_req.key = key;
 		ins_req.value = key;
 		ins_req.value_size = key_size;
-		insert_skiplist(concurrent_skiplist, &ins_req);
+		insert_skiplist(&ins_req);
 		//print_skplist(&my_skiplist);
 	}
 	pthread_exit(NULL);

@@ -52,7 +52,7 @@ static void *populate_the_skiplist(void *args)
 		ins_req.key = key;
 		ins_req.value_size = key_size;
 		ins_req.value = key;
-		insert_skiplist(my_skiplist, &ins_req);
+		insert_skiplist(&ins_req);
 	}
 	pthread_exit(NULL);
 }

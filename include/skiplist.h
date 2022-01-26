@@ -84,7 +84,7 @@ void set_skplist_handle(struct skiplist *skplist, void *handle);
 void *get_skplist_handle(struct skiplist *skplist);
 /*skiplist operations*/
 void search_skiplist(struct skiplist *skplist, struct skplist_search_request *search_req);
-void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *ins_req);
+void insert_skiplist(struct skplist_insert_request *ins_req);
 void delete_skiplist(struct skiplist *skplist, char *key); //TBI
 void free_skiplist(struct skiplist *skplist);
 /*iterators staff*/

@@ -73,7 +73,7 @@ static void default_fill_node(struct skiplist_node *node, struct skplist_insert_
 {
 	assert(node != NULL);
 	/*fill the node with the kv inplace*/
-	if(!ins_req->is_update){
+	if (!ins_req->is_update) {
 		/*operation is insert, fill key accordingly*/
 		node->kv->key = malloc(ins_req->key_size);
 		node->kv->key_size = ins_req->key_size;
@@ -282,7 +282,7 @@ static struct skiplist_node *getLock(struct skiplist *skplist, struct skiplist_n
 	return curr;
 }
 
-void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *ins_req)
+void insert_skiplist(struct skplist_insert_request *ins_req)
 {
 	int i, ret;
 	uint32_t node_key_size, lvl;
@@ -290,10 +290,11 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 	struct skiplist_node *update_vector[SKPLIST_MAX_LEVELS];
 	struct skiplist_node *curr, *next_curr;
 
-	RWLOCK_RDLOCK(&skplist->ltable[skplist_hash((uint64_t)skplist->header) % LOCK_TABLE_ENTRIES].rx_lock);
-	curr = skplist->header;
+	RWLOCK_RDLOCK(&ins_req->skplist->ltable[skplist_hash((uint64_t)ins_req->skplist->header) % LOCK_TABLE_ENTRIES]
+			       .rx_lock);
+	curr = ins_req->skplist->header;
 	/*we have the lock of the header, determine the lvl of the list*/
-	lvl = calculate_level(skplist);
+	lvl = calculate_level(ins_req->skplist);
 	/*traverse the levels till 0 */
 	for (i = lvl; i >= 0; --i) {
 		next_curr = curr->forward_pointer[i];
@@ -302,14 +303,16 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 				break;
 			}
 
-			ret = skplist->comparator(curr->forward_pointer[i], ins_req);
+			ret = ins_req->skplist->comparator(curr->forward_pointer[i], ins_req);
 
 			if (ret < 0) {
 				RWLOCK_UNLOCK(
-					&skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
+					&ins_req->skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES]
+						 .rx_lock);
 				curr = next_curr;
 				RWLOCK_RDLOCK(
-					&skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
+					&ins_req->skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES]
+						 .rx_lock);
 				next_curr = curr->forward_pointer[i];
 			} else {
 				break;
@@ -319,11 +322,11 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 								  * think that the concurrent inserts can update the list in the meanwhile*/
 	}
 
-	curr = getLock(skplist, curr, ins_req, 0);
+	curr = getLock(ins_req->skplist, curr, ins_req, 0);
 
 	/*compare forward's key with the key*/
 	if (!curr->forward_pointer[0]->is_NIL)
-		ret = skplist->comparator(curr->forward_pointer[0], ins_req);
+		ret = ins_req->skplist->comparator(curr->forward_pointer[0], ins_req);
 	else
 		ret = 1;
 
@@ -332,8 +335,8 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 	*/
 	if (ret == 0) { /*update logic*/
 		ins_req->is_update = 1;
-		skplist->fill_node(curr->forward_pointer[0], ins_req);
-		RWLOCK_UNLOCK(&skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
+		ins_req->skplist->fill_node(curr->forward_pointer[0], ins_req);
+		RWLOCK_UNLOCK(&ins_req->skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
 		return;
 	}
 	/*insert logic*/
@@ -341,24 +344,24 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 	int new_node_lvl = random_level();
 	struct skiplist_node *new_node = allocate_new_node();
 
-	skplist->fill_node(new_node, ins_req);
+	ins_req->skplist->fill_node(new_node, ins_req);
 	new_node->level = new_node_lvl;
 
 	/*we need to update the header correcly cause new_node_lvl > lvl*/
 	for (i = lvl + 1; i <= new_node_lvl; ++i)
-		update_vector[i] = skplist->header;
+		update_vector[i] = ins_req->skplist->header;
 
 	for (i = 0; i <= new_node->level; ++i) {
 		/*update_vector might be altered, find the correct rightmost node if it has changed*/
 		if (i != 0)
 			curr = getLock(
-				skplist, update_vector[i], ins_req,
+				ins_req->skplist, update_vector[i], ins_req,
 				i); /*we can change curr now cause level i-1 has effectivly the new node and its job is done*/
 
 		/*linking logic*/
 		new_node->forward_pointer[i] = curr->forward_pointer[i];
 		curr->forward_pointer[i] = new_node;
-		RWLOCK_UNLOCK(&skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
+		RWLOCK_UNLOCK(&ins_req->skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
 	}
 }
 
