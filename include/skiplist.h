@@ -50,6 +50,9 @@ struct skiplist {
 	struct skplist_lock_table ltable[LOCK_TABLE_ENTRIES];
 	struct skiplist_node *header;
 	struct skiplist_node *NIL_element; //last element of the skip list
+	/*this variable is null by default
+	 *users should use this variable to associate a skplist with another component */
+	void *handle;
 	/* a generic key comparator, comparator should return:
 	 * > 0 if key1 > key2
 	 * < 0 key2 > key1
@@ -75,6 +78,8 @@ void change_fill_node_of_skiplist(struct skiplist *skplist,
 
 void change_retrieve_value(struct skiplist *skplist, void (*retrieve_value)(struct skiplist_node *node,
 									    struct skplist_search_request *search_req));
+void set_skplist_handle(struct skiplist *skplist, void *handle);
+void *get_skplist_handle(struct skiplist *skplist);
 /*skiplist operations*/
 void search_skiplist(struct skiplist *skplist, struct skplist_search_request *search_req);
 void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *ins_req);

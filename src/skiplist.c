@@ -94,6 +94,18 @@ static void default_retrieve_value(struct skiplist_node *node, struct skplist_se
 	search_req->found = 1;
 }
 
+void set_skplist_handle(struct skiplist *skplist, void *handle)
+{
+	assert(handle != NULL);
+	assert(skplist != NULL);
+	skplist->handle = handle;
+}
+
+void *get_skplist_handle(struct skiplist *skplist)
+{
+	assert(skplist != NULL);
+	return skplist->handle;
+}
 /*returns the biggest non-null level*/
 static uint32_t calculate_level(struct skiplist *skplist)
 {
@@ -145,6 +157,7 @@ struct skiplist *init_skiplist(void)
 	skplist->comparator = default_skiplist_comparator;
 	skplist->fill_node = default_fill_node;
 	skplist->retrieve_value = default_retrieve_value;
+	skplist->handle = NULL;
 	return skplist;
 }
 
