@@ -331,10 +331,8 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 	curr = getLock(skplist, curr, ins_req, 0);
 	/*kv_seperation logic*/
 	kv_dev_offt = skplist->store_kv_to_log(skplist->store_kv_to_log_param);
-	if (kv_dev_offt != 0) {
-		ins_req->value_size = sizeof(uint64_t);
+	if (kv_dev_offt != 0)
 		ins_req->value = &kv_dev_offt;
-	}
 
 	/*compare forward's key with the key*/
 	if (!curr->forward_pointer[0]->is_NIL)
