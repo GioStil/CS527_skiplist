@@ -108,6 +108,14 @@ static void default_retrieve_value(struct skiplist_node *node, struct skplist_se
 	search_req->found = 1;
 }
 
+/*by default this function is set to null
+ *it's the users responsibility to alter this
+*/
+static uint64_t default_store_kv_to_log(void *insert_req)
+{
+	return 0;
+}
+
 /*returns the biggest non-null level*/
 static uint32_t calculate_level(struct skiplist *skplist)
 {
@@ -160,6 +168,7 @@ struct skiplist *init_skiplist(void)
 	skplist->make_node = default_make_node;
 	skplist->store_value = default_store_value;
 	skplist->retrieve_value = default_retrieve_value;
+	skplist->store_kv_to_log = default_store_kv_to_log;
 	return skplist;
 }
 
@@ -189,6 +198,12 @@ void change_retrieve_value(struct skiplist *skplist, void (*retrieve_value)(stru
 {
 	assert(skplist != NULL);
 	skplist->retrieve_value = retrieve_value;
+}
+
+void change_store_kv_to_log(struct skiplist *skplist, uint64_t (*store_kv_to_log)(void *ins_req))
+{
+	assert(skplist != NULL);
+	skplist->store_kv_to_log = store_kv_to_log;
 }
 
 void search_skiplist(struct skiplist *skplist, struct skplist_search_request *search_req)
@@ -280,6 +295,7 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 {
 	int i, ret;
 	uint32_t node_key_size, lvl;
+	uint64_t kv_dev_offt;
 	struct skiplist_node *update_vector[SKPLIST_MAX_LEVELS];
 	struct skiplist_node *curr, *next_curr;
 
@@ -313,6 +329,13 @@ void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *in
 	}
 
 	curr = getLock(skplist, curr, ins_req, 0);
+	/*kv_seperation logic*/
+	kv_dev_offt = skplist->store_kv_to_log(skplist->store_kv_to_log_param);
+	if (kv_dev_offt != 0) {
+		ins_req->value_size = sizeof(uint64_t);
+		ins_req->value = &kv_dev_offt;
+	}
+
 	/*compare forward's key with the key*/
 	if (!curr->forward_pointer[0]->is_NIL)
 		ret = skplist->comparator(curr->forward_pointer[0], ins_req);

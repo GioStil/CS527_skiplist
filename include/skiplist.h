@@ -68,6 +68,10 @@ struct skiplist {
 	 * have to be accordinlgy changed if needed*/
 	void (*retrieve_value)(struct skiplist_node *node, struct skplist_search_request *search_req);
 
+	/*generic function for inserting the kv at a log
+	 *this function in set to null by default */
+	uint64_t (*store_kv_to_log)(void *ins_req);
+	void *store_kv_to_log_param;
 	uint32_t level; //this variable will be used as the level hint
 };
 
@@ -83,6 +87,7 @@ void change_store_value(struct skiplist *skplist,
 void change_retrieve_value(struct skiplist *skplist, void (*retrieve_value)(struct skiplist_node *node,
 									    struct skplist_search_request *search_req));
 
+void change_store_kv_to_log(struct skiplist *skplist, uint64_t (*store_kv_to_log)(void *));
 /*skiplist operations*/
 void search_skiplist(struct skiplist *skplist, struct skplist_search_request *search_req);
 void insert_skiplist(struct skiplist *skplist, struct skplist_insert_request *ins_req);
