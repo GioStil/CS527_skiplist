@@ -107,6 +107,7 @@ void set_skplist_handle(struct skiplist *skplist, void *handle)
 void *get_skplist_handle(struct skiplist *skplist)
 {
 	assert(skplist != NULL);
+	assert(skplist->handle != NULL);
 	return skplist->handle;
 }
 /*returns the biggest non-null level*/
