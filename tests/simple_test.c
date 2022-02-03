@@ -10,7 +10,7 @@
 
 #define KVS_NUM 5000000
 #define KV_PREFIX "ts"
-#define NUM_OF_THREADS 7
+#define NUM_OF_THREADS 6
 
 struct thread_info {
 	pthread_t th;
@@ -116,7 +116,18 @@ static void *search_the_skiplist(void *args)
 	search_req.key_size = key_size;
 	search_req.key = key;
 	search_skiplist(my_skiplist, &search_req);
+	struct skiplist_iterator *iter = (struct skiplist_iterator *)calloc(1, sizeof(struct skiplist_iterator));
+	init_iterator(iter, my_skiplist, &search_req);
 	assert(search_req.found == 0);
+	assert(iter->is_valid == 0);
+
+	/*seek for a valid key*/
+	memcpy(key, "ts10", 4);
+	key_size = 4;
+	search_req.key_size = key_size;
+	search_req.key = key;
+	init_iterator(iter, my_skiplist, &search_req);
+	assert(memcmp(iter->iter_node->kv->key, key, search_req.key_size) == 0);
 
 	pthread_exit(NULL);
 }

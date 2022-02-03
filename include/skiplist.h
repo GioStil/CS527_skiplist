@@ -88,7 +88,7 @@ void insert_skiplist(struct skplist_insert_request *ins_req);
 void delete_skiplist(struct skiplist *skplist, char *key); //TBI
 void free_skiplist(struct skiplist *skplist);
 /*iterators staff*/
-void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, uint32_t key_size, void *search_key);
+void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, struct skplist_search_request *search_req);
 void iter_seek_to_first(struct skiplist_iterator *iter, struct skiplist *skplist);
 void get_next(struct skiplist_iterator *iter);
 /*return 1 if valid 0 if not valid*/

@@ -221,7 +221,7 @@ void search_skiplist(struct skiplist *skplist, struct skplist_search_request *se
 	 * next element for level 0 is sentinel, key not found
 	*/
 	if (!curr->forward_pointer[0]->is_NIL)
-		skplist->comparator(curr->forward_pointer[0], search_req);
+		ret = skplist->comparator(curr->forward_pointer[0], search_req);
 	else
 		ret = 1;
 
@@ -423,7 +423,7 @@ void delete_skiplist(struct skiplist *skplist, char *key)
 /*iterator will hold the readlock of the corresponding search_key's node.
  ! all the inserts/update operations are valid except the ones containing that node(because for such modifications
  the write lock is needed)*/
-void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, uint32_t key_size, void *search_key)
+void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, struct skplist_search_request *search_req)
 {
 	int i, lvl;
 	struct skiplist_node *curr, *next_curr;
@@ -439,11 +439,7 @@ void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, uin
 			if (curr->forward_pointer[i]->is_NIL) //reached sentinel for that level
 				break;
 
-			node_key_size = curr->forward_pointer[i]->kv->key_size;
-			if (node_key_size > key_size)
-				ret = memcmp(curr->forward_pointer[i]->kv->key, search_key, node_key_size);
-			else
-				ret = memcmp(curr->forward_pointer[i]->kv->key, search_key, key_size);
+			ret = skplist->comparator(curr->forward_pointer[i], search_req);
 
 			if (ret < 0) {
 				RWLOCK_UNLOCK(
@@ -461,9 +457,7 @@ void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, uin
 	 * next element for level 0 is sentinel, key not found
 	*/
 	if (!curr->forward_pointer[0]->is_NIL) {
-		node_key_size = curr->forward_pointer[0]->kv->key_size;
-		key_size = key_size > node_key_size ? key_size : node_key_size;
-		ret = memcmp(curr->forward_pointer[0]->kv->key, search_key, key_size);
+		ret = skplist->comparator(curr->forward_pointer[0], search_req);
 	} else {
 		printf("Reached end of the skiplist, didn't found key");
 		iter->is_valid = 0;
