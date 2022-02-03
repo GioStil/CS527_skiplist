@@ -12,10 +12,10 @@ struct skplist_lock_table {
 };
 
 struct node_data {
-	uint32_t key_size;
 	void *key;
-	uint32_t value_size;
 	void *value;
+	uint32_t key_size;
+	uint32_t value_size;
 };
 
 struct skiplist_node {
