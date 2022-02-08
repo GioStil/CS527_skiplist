@@ -337,7 +337,17 @@ void insert_skiplist(struct skplist_insert_request *ins_req)
 	if (ret == 0) { /*update logic*/
 		ins_req->is_update = 1;
 		ins_req->skplist->fill_node(curr->forward_pointer[0], ins_req);
-		RWLOCK_UNLOCK(&ins_req->skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
+		for (i = 0; i < lvl; i++) {
+			if (i == 0)
+				RWLOCK_UNLOCK(
+					&ins_req->skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES]
+						 .rx_lock);
+			else
+				RWLOCK_UNLOCK(
+					&ins_req->skplist
+						 ->ltable[skplist_hash((uint64_t)update_vector[i]) % LOCK_TABLE_ENTRIES]
+						 .rx_lock);
+		}
 		return;
 	}
 	/*insert logic*/
