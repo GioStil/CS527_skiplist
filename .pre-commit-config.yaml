@@ -7,7 +7,7 @@ ci:
 repos:
 
     - repo: https://github.com/pre-commit/pre-commit-hooks
-      rev: v4.1.0
+      rev: v4.5.0
       hooks:
           - id: trailing-whitespace
             exclude: docs/
@@ -23,19 +23,19 @@ repos:
       hooks:
           - id: cmake-format
 
-    - repo: git://github.com/doublify/pre-commit-clang-format
+    - repo: https://github.com/doublify/pre-commit-clang-format
       rev: 62302476d0da01515660132d76902359bed0f782
       hooks:
           - id: clang-format
 
     - repo: https://github.com/jumanjihouse/pre-commit-hooks
-      rev: 2.1.5
+      rev: 3.0.0
       hooks:
           - id: protect-first-parent
           - id: forbid-binary
 
     - repo: https://github.com/jorisroovers/gitlint
-      rev: v0.17.0
+      rev: v0.19.1
       hooks:
           - id: gitlint
             stages: [commit-msg]
@@ -43,7 +43,7 @@ repos:
             args: [--msg-filename]
 
     - repo: https://github.com/jumanjihouse/pre-commit-hook-yamlfmt
-      rev: 0.1.0
+      rev: 0.2.3
       hooks:
           - id: yamlfmt
             exclude: options.yml
