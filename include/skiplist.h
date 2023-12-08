@@ -17,9 +17,12 @@ struct node_data {
 	uint32_t value_size;
 	void *value;
 };
+struct skiplist_pivots {
+	struct skiplist_node *forward_pointer[SKPLIST_MAX_LEVELS];
+};
 
 struct skiplist_node {
-	struct skiplist_node *forward_pointer[SKPLIST_MAX_LEVELS];
+	struct skiplist_pivots *pivots;
 	struct node_data *kv;
 	uint32_t level;
 	uint8_t is_NIL;

@@ -26,7 +26,7 @@ static void print_skplist(struct skiplist *skplist)
 		printf("keys at level %d -> ", i);
 		while (!curr->is_NIL) {
 			printf("[%s], ", curr->kv->key);
-			curr = curr->forward_pointer[i];
+			curr = curr->pivots->forward_pointer[i];
 		}
 		printf("\n");
 	}
@@ -81,8 +81,8 @@ static void validate_number_of_KVS(struct skiplist *skplist)
 	int count;
 	struct skiplist_node *curr = skplist->header;
 
-	while (curr->forward_pointer[0] != skplist->NIL_element) {
-		curr = curr->forward_pointer[0];
+	while (curr->pivots->forward_pointer[0] != skplist->NIL_element) {
+		curr = curr->pivots->forward_pointer[0];
 		++count;
 	}
 	printf("Count is %d\n", count);
@@ -98,7 +98,7 @@ static void print_each_level_size(struct skiplist *skplist)
 
 		while (curr->is_NIL == 0) {
 			count++;
-			curr = curr->forward_pointer[i];
+			curr = curr->pivots->forward_pointer[i];
 		}
 		printf("level's %" PRIu64 "size is %" PRIu64 "\n", i, count);
 	}
@@ -111,16 +111,16 @@ static void compare_the_lists(struct skiplist *clist, struct skiplist *swlist)
 {
 	int ret;
 	struct skiplist_node *ccurr, *swcurr;
-	ccurr = clist->header->forward_pointer[0]; //skip the header, start from the first key
-	swcurr = swlist->header->forward_pointer[0]; //skip the header, start from the first key
+	ccurr = clist->header->pivots->forward_pointer[0]; //skip the header, start from the first key
+	swcurr = swlist->header->pivots->forward_pointer[0]; //skip the header, start from the first key
 
-	while (swcurr->forward_pointer[0] != swlist->NIL_element) {
+	while (swcurr->pivots->forward_pointer[0] != swlist->NIL_element) {
 		int key_size = strlen(swcurr->kv->key) > strlen(ccurr->kv->key) ? strlen(swcurr->kv->key) :
-											strlen(ccurr->kv->key);
+										  strlen(ccurr->kv->key);
 		ret = memcmp(swcurr->kv->key, ccurr->kv->key, key_size);
 		if (ret == 0) { //all good step
-			swcurr = swcurr->forward_pointer[0];
-			ccurr = ccurr->forward_pointer[0];
+			swcurr = swcurr->pivots->forward_pointer[0];
+			ccurr = ccurr->pivots->forward_pointer[0];
 		} else {
 			printf("Found key %s over %s that doesnt exist at the concurrent skiplist\n", swcurr->kv->key,
 			       ccurr->kv->key);

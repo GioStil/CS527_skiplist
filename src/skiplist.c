@@ -44,7 +44,7 @@ static int default_skiplist_comparator(void *key1, void *key2)
 	uint64_t node_key_size;
 	int ret;
 	/*key1 is the curr node being examinated
-	 *meaning the curr->forward[i] */
+	 *meaning the curr->pivots->forward[i] */
 	struct skiplist_node *curr_forward = (struct skiplist_node *)key1;
 	/*key2 is the insert/search request obj
 	 *insert and search requests have the same <key,value,key_size,value_size> first fealds */
@@ -115,7 +115,7 @@ static uint32_t calculate_level(struct skiplist *skplist)
 {
 	uint32_t i, lvl = 0;
 	for (i = 0; i < SKPLIST_MAX_LEVELS; ++i) {
-		if (skplist->header->forward_pointer[i] != skplist->NIL_element)
+		if (skplist->header->pivots->forward_pointer[i] != skplist->NIL_element)
 			lvl = i;
 		else
 			break;
@@ -153,10 +153,10 @@ struct skiplist *init_skiplist(void)
 	}
 	skplist->header->is_NIL = 0;
 	skplist->header->level = 0;
-
-	/* all forward pointers of header point to NIL */
+	skplist->header->pivots = (struct skiplist_pivots *)malloc(sizeof(struct skiplist_pivots));
+	/* all pivots->forward pointers of header point to NIL */
 	for (i = 0; i < SKPLIST_MAX_LEVELS; ++i)
-		skplist->header->forward_pointer[i] = skplist->NIL_element;
+		skplist->header->pivots->forward_pointer[i] = skplist->NIL_element;
 
 	skplist->comparator = default_skiplist_comparator;
 	skplist->fill_node = default_fill_node;
@@ -197,12 +197,12 @@ void search_skiplist(struct skiplist *skplist, struct skplist_search_request *se
 	lvl = calculate_level(skplist);
 
 	for (i = lvl; i >= 0; --i) {
-		next_curr = curr->forward_pointer[i];
+		next_curr = curr->pivots->forward_pointer[i];
 		while (1) {
-			if (curr->forward_pointer[i]->is_NIL)
+			if (curr->pivots->forward_pointer[i]->is_NIL)
 				break;
 
-			ret = skplist->comparator(curr->forward_pointer[i], search_req);
+			ret = skplist->comparator(curr->pivots->forward_pointer[i], search_req);
 
 			if (ret < 0) {
 				RWLOCK_UNLOCK(
@@ -210,7 +210,7 @@ void search_skiplist(struct skiplist *skplist, struct skplist_search_request *se
 				curr = next_curr;
 				RWLOCK_RDLOCK(
 					&skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
-				next_curr = curr->forward_pointer[i];
+				next_curr = curr->pivots->forward_pointer[i];
 			} else
 				break;
 		}
@@ -220,13 +220,13 @@ void search_skiplist(struct skiplist *skplist, struct skplist_search_request *se
 	 * corner case
 	 * next element for level 0 is sentinel, key not found
 	*/
-	if (!curr->forward_pointer[0]->is_NIL)
-		ret = skplist->comparator(curr->forward_pointer[0], search_req);
+	if (!curr->pivots->forward_pointer[0]->is_NIL)
+		ret = skplist->comparator(curr->pivots->forward_pointer[0], search_req);
 	else
 		ret = 1;
 
 	if (ret == 0) {
-		skplist->retrieve_value(curr->forward_pointer[0], search_req);
+		skplist->retrieve_value(curr->pivots->forward_pointer[0], search_req);
 		RWLOCK_UNLOCK(&skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
 	} else {
 		search_req->found = 0;
@@ -238,6 +238,7 @@ static struct skiplist_node *allocate_new_node(void)
 {
 	struct skiplist_node *new_node = (struct skiplist_node *)malloc(sizeof(struct skiplist_node));
 	new_node->kv = (struct node_data *)malloc(sizeof(struct node_data));
+	new_node->pivots = (struct skiplist_pivots *)malloc(sizeof(struct skiplist_pivots));
 	if (new_node == NULL || new_node->kv == NULL) {
 		printf("Malloc failed to allocate a node\n");
 		assert(0);
@@ -260,17 +261,17 @@ static struct skiplist_node *getLock(struct skiplist *skplist, struct skiplist_n
 
 	/*if lvl is 0 we have locked the curr due to the search acrross the levels*/
 	/*acquire the write locks from now on*/
-	next_curr = curr->forward_pointer[lvl];
+	next_curr = curr->pivots->forward_pointer[lvl];
 
 	while (1) {
-		if (curr->forward_pointer[lvl]->is_NIL)
+		if (curr->pivots->forward_pointer[lvl]->is_NIL)
 			break;
 
-		ret = skplist->comparator(curr->forward_pointer[lvl], ins_req);
+		ret = skplist->comparator(curr->pivots->forward_pointer[lvl], ins_req);
 
 		if (ret < 0) {
 			curr = next_curr;
-			next_curr = curr->forward_pointer[lvl];
+			next_curr = curr->pivots->forward_pointer[lvl];
 		} else {
 			break;
 		}
@@ -291,17 +292,17 @@ void insert_skiplist(struct skplist_insert_request *ins_req)
 	lvl = calculate_level(ins_req->skplist);
 	/*traverse the levels till 0 */
 	for (i = lvl; i >= 0; --i) {
-		next_curr = curr->forward_pointer[i];
+		next_curr = curr->pivots->forward_pointer[i];
 		while (1) {
-			if (curr->forward_pointer[i]->is_NIL) {
+			if (curr->pivots->forward_pointer[i]->is_NIL) {
 				break;
 			}
 
-			ret = ins_req->skplist->comparator(curr->forward_pointer[i], ins_req);
+			ret = ins_req->skplist->comparator(curr->pivots->forward_pointer[i], ins_req);
 
 			if (ret < 0) {
 				curr = next_curr;
-				next_curr = curr->forward_pointer[i];
+				next_curr = curr->pivots->forward_pointer[i];
 			} else {
 				break;
 			}
@@ -312,18 +313,18 @@ void insert_skiplist(struct skplist_insert_request *ins_req)
 
 	curr = getLock(ins_req->skplist, curr, ins_req, 0);
 
-	/*compare forward's key with the key*/
-	if (!curr->forward_pointer[0]->is_NIL)
-		ret = ins_req->skplist->comparator(curr->forward_pointer[0], ins_req);
+	/*compare pivots->forward's key with the key*/
+	if (!curr->pivots->forward_pointer[0]->is_NIL)
+		ret = ins_req->skplist->comparator(curr->pivots->forward_pointer[0], ins_req);
 	else
 		ret = 1;
 
 	/* updates are done only with the curr node write locked, so we dont have race using the
-	 * forward pointer
+	 * pivots->forward pointer
 	*/
 	if (ret == 0) { /*update logic*/
 		ins_req->is_update = 1;
-		ins_req->skplist->fill_node(curr->forward_pointer[0], ins_req);
+		ins_req->skplist->fill_node(curr->pivots->forward_pointer[0], ins_req);
 		return;
 	}
 	/*insert logic*/
@@ -346,8 +347,8 @@ void insert_skiplist(struct skplist_insert_request *ins_req)
 				i); /*we can change curr now cause level i-1 has effectivly the new node and its job is done*/
 
 		/*linking logic*/
-		new_node->forward_pointer[i] = curr->forward_pointer[i];
-		curr->forward_pointer[i] = new_node;
+		new_node->pivots->forward_pointer[i] = curr->pivots->forward_pointer[i];
+		curr->pivots->forward_pointer[i] = new_node;
 	}
 }
 
@@ -355,15 +356,15 @@ static void delete_key(struct skiplist *skplist, struct skiplist_node **update_v
 {
 	int i;
 	for (i = 0; i <= skplist->level; ++i) {
-		if (update_vector[i]->forward_pointer[i] != curr)
+		if (update_vector[i]->pivots->forward_pointer[i] != curr)
 			break;
 
-		update_vector[i]->forward_pointer[i] = curr->forward_pointer[i];
+		update_vector[i]->pivots->forward_pointer[i] = curr->pivots->forward_pointer[i];
 	}
 	free(curr); //FIXME we will use tombstones?
 
 	//previous skplist->level dont have nodes anymore. header points to NIL, so reduce the level of the list
-	while (skplist->level > 0 && skplist->header->forward_pointer[skplist->level]->is_NIL)
+	while (skplist->level > 0 && skplist->header->pivots->forward_pointer[skplist->level]->is_NIL)
 		--skplist->level;
 }
 
@@ -378,12 +379,12 @@ void delete_skiplist(struct skiplist *skplist, char *key)
 
 	for (i = skplist->level; i >= 0; --i) {
 		while (1) {
-			if (curr->forward_pointer[i]->is_NIL == 1)
+			if (curr->pivots->forward_pointer[i]->is_NIL == 1)
 				break; //reached sentinel
 
-			ret = memcmp(curr->forward_pointer[i]->kv->key, key, key_size);
+			ret = memcmp(curr->pivots->forward_pointer[i]->kv->key, key, key_size);
 			if (ret < 0)
-				curr = curr->forward_pointer[i];
+				curr = curr->pivots->forward_pointer[i];
 			else
 				break;
 		}
@@ -391,7 +392,7 @@ void delete_skiplist(struct skiplist *skplist, char *key)
 		update_vector[i] = curr;
 	}
 	//retrieve it and check for existence
-	curr = curr->forward_pointer[0];
+	curr = curr->pivots->forward_pointer[0];
 	if (!curr->is_NIL)
 		ret = memcmp(curr->kv->key, key, key_size);
 	else
@@ -419,12 +420,12 @@ void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, str
 	lvl = calculate_level(skplist);
 
 	for (i = lvl; i >= 0; --i) {
-		next_curr = curr->forward_pointer[i];
+		next_curr = curr->pivots->forward_pointer[i];
 		while (1) {
-			if (curr->forward_pointer[i]->is_NIL) //reached sentinel for that level
+			if (curr->pivots->forward_pointer[i]->is_NIL) //reached sentinel for that level
 				break;
 
-			ret = skplist->comparator(curr->forward_pointer[i], search_req);
+			ret = skplist->comparator(curr->pivots->forward_pointer[i], search_req);
 
 			if (ret < 0) {
 				RWLOCK_UNLOCK(
@@ -432,7 +433,7 @@ void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, str
 				curr = next_curr;
 				RWLOCK_RDLOCK(
 					&skplist->ltable[skplist_hash((uint64_t)curr) % LOCK_TABLE_ENTRIES].rx_lock);
-				next_curr = curr->forward_pointer[i];
+				next_curr = curr->pivots->forward_pointer[i];
 			} else
 				break;
 		}
@@ -441,8 +442,8 @@ void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, str
 	 * corner case
 	 * next element for level 0 is sentinel, key not found
 	*/
-	if (!curr->forward_pointer[0]->is_NIL) {
-		ret = skplist->comparator(curr->forward_pointer[0], search_req);
+	if (!curr->pivots->forward_pointer[0]->is_NIL) {
+		ret = skplist->comparator(curr->pivots->forward_pointer[0], search_req);
 	} else {
 		printf("Reached end of the skiplist, didn't found key");
 		iter->is_valid = 0;
@@ -452,7 +453,7 @@ void init_iterator(struct skiplist_iterator *iter, struct skiplist *skplist, str
 
 	if (ret == 0) {
 		iter->is_valid = 1;
-		iter->iter_node = curr->forward_pointer[0];
+		iter->iter_node = curr->pivots->forward_pointer[0];
 		iter->iter_skplist = skplist;
 		/*lock iter_node unlock curr (remember curr is always behind the correct node)*/
 		RWLOCK_RDLOCK(&skplist->ltable[skplist_hash((uint64_t)iter->iter_node) % LOCK_TABLE_ENTRIES].rx_lock);
@@ -472,11 +473,11 @@ void iter_seek_to_first(struct skiplist_iterator *iter, struct skiplist *skplist
 	struct skiplist_node *curr, *next_curr;
 	RWLOCK_RDLOCK(&skplist->ltable[skplist_hash((uint64_t)skplist->header) % LOCK_TABLE_ENTRIES].rx_lock);
 	curr = skplist->header;
-	next_curr = curr->forward_pointer[0];
+	next_curr = curr->pivots->forward_pointer[0];
 
-	if (!curr->forward_pointer[0]->is_NIL) {
+	if (!curr->pivots->forward_pointer[0]->is_NIL) {
 		iter->is_valid = 1;
-		iter->iter_node = curr->forward_pointer[0];
+		iter->iter_node = curr->pivots->forward_pointer[0];
 		iter->iter_skplist = skplist;
 		/*lock iter_node unlock curr (remember curr is always behind the correct node) */
 		RWLOCK_RDLOCK(&skplist->ltable[skplist_hash((uint64_t)iter->iter_node) % LOCK_TABLE_ENTRIES].rx_lock);
@@ -493,7 +494,7 @@ void iter_seek_to_first(struct skiplist_iterator *iter, struct skiplist *skplist
 void get_next(struct skiplist_iterator *iter)
 {
 	if (iter->is_valid == 1) {
-		struct skiplist_node *next_node = iter->iter_node->forward_pointer[0];
+		struct skiplist_node *next_node = iter->iter_node->pivots->forward_pointer[0];
 		if (next_node->is_NIL) {
 			printf("Reached end of the skplist\n");
 			iter->is_valid = 0;
@@ -551,7 +552,7 @@ void free_skiplist(struct skiplist *skplist)
 	curr = skplist->header;
 
 	while (!curr->is_NIL) {
-		next_curr = curr->forward_pointer[0];
+		next_curr = curr->pivots->forward_pointer[0];
 		free(curr);
 		curr = next_curr;
 	}
